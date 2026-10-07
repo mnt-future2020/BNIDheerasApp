@@ -62,33 +62,32 @@ describe("separation of duties", () => {
       "event_coordinator",
     ]);
     expect(capabilitiesFor(["lvh_captain" as Role], false).size).toBe(0);
-    // Both run the meetings; what they may do inside one is what differs.
-    expect(roleCapabilities("lvh")).toEqual(["meetings.manage"]);
-    expect(roleCapabilities("attendance_coordinator")).toEqual([
-      "attendance.manual",
-      "palms.view",
-      "meetings.manage",
-    ]);
+    // One schedules the meetings and logs visitors; the other works the sheet.
+    expect(roleCapabilities("lvh")).toEqual(["meetings.manage", "visitors.manage"]);
+    expect(roleCapabilities("attendance_coordinator")).toEqual(["attendance.manual", "palms.view"]);
     expect(roleCapabilities("event_coordinator")).toEqual(["calendar.manage"]);
   });
 
-  it("keeps PALMS, the summary, the QR and visitors with the right role", () => {
+  it("keeps PALMS, the summary, the QR, visitors and cancelling with the right role", () => {
     const lvh = capabilitiesFor(["lvh"], false);
     const coordinator = capabilitiesFor(["attendance_coordinator"], false);
 
-    // LVH runs the meetings but neither enters attendance nor reads it back,
-    // and the venue screen's QR is not theirs.
+    // LVH schedules meetings and records visitors. Not PALMS, not the summary,
+    // not the venue screen's QR, and not calling a meeting off.
     expect(lvh.has("meetings.manage")).toBe(true);
+    expect(lvh.has("visitors.manage")).toBe(true);
     expect(lvh.has("attendance.manual")).toBe(false); // PALMS
     expect(lvh.has("palms.view") || lvh.has("meeting.finalize")).toBe(false); // Summary
     expect(lvh.has("kiosk.run")).toBe(false); // QR link
+    expect(lvh.has("meetings.remove")).toBe(false); // Cancel and delete
 
-    // The Attendance Coordinator runs the meetings and PALMS. Visitors needs
-    // kiosk.run or meeting.finalize, so it stays off this role.
-    expect(coordinator.has("meetings.manage")).toBe(true);
+    // The Attendance Coordinator works the sheet. The meeting itself is not
+    // theirs to create, edit, cancel or delete, and nor are visitors.
     expect(coordinator.has("attendance.manual")).toBe(true);
     expect(coordinator.has("palms.view")).toBe(true);
-    expect(coordinator.has("kiosk.run") || coordinator.has("meeting.finalize")).toBe(false);
+    expect(coordinator.has("meetings.manage")).toBe(false);
+    expect(coordinator.has("meetings.remove")).toBe(false);
+    expect(coordinator.has("visitors.manage")).toBe(false);
   });
 
   it("shows every capability in the permissions grid, module by module", () => {
@@ -99,15 +98,15 @@ describe("separation of duties", () => {
     expect(permissionGrid(capabilitiesFor([], true))).toHaveLength(PERMISSION_MODULES.length);
     expect(permissionGrid(capabilitiesFor([], false))).toEqual([]);
 
-    // LVH: the whole Meetings module, and nothing else.
+    // LVH: meetings without the delete column, and visitors.
     const lvh = permissionGrid(capabilitiesFor(["lvh"], false));
-    expect(lvh.map((r) => r.module)).toEqual(["Meetings & venues"]);
-    expect(lvh[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "yes" });
+    expect(lvh.map((r) => r.module)).toEqual(["Meetings & venues", "Visitors"]);
+    expect(lvh[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "no" });
 
-    // The Attendance Coordinator adds PALMS on top; visitors is not a row they get.
+    // The Attendance Coordinator gets PALMS, and no meeting row at all.
     const coordinator = permissionGrid(capabilitiesFor(["attendance_coordinator"], false));
-    expect(coordinator.map((r) => r.module)).toEqual(["Meetings & venues", "PALMS"]);
-    expect(coordinator[1].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "none" });
+    expect(coordinator.map((r) => r.module)).toEqual(["PALMS"]);
+    expect(coordinator[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "none" });
 
     const events = permissionGrid(capabilitiesFor(["event_coordinator"], false));
     expect(events.map((r) => r.module)).toEqual(["Events calendar"]);

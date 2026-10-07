@@ -59,11 +59,8 @@ export default async function EnterPalmsPage({ params }: PageProps<"/admin/meeti
             at: r.at,
             substitute: r.substitute?.name ?? null,
             substitutePhone: r.substitute?.phone ?? null,
-            // Only an approved leave fills the sheet in; what was said is shown
-            // either way, so a medical leave still waiting can be read here.
-            leave: r.leave && r.leave.status === "approved" ? r.leave.kind : null,
+            leave: r.leave?.kind ?? null,
             leaveReason: r.leave?.reason ?? null,
-            leaveStatus: r.leave?.status ?? null,
           }))}
         />
       )}

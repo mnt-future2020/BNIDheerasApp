@@ -197,7 +197,7 @@ export async function updateMeeting(id: string, input: z.input<typeof meetingSch
 
 export async function cancelMeeting(id: string, reason: string): Promise<ActionResult> {
   return runAction(async () => {
-    const me = await assertCap("meetings.manage");
+    const me = await assertCap("meetings.remove");
     const why = z.string().trim().min(3, "Give a reason").max(200).parse(reason);
     const [row] = await db
       .update(meeting)
@@ -214,7 +214,7 @@ export async function cancelMeeting(id: string, reason: string): Promise<ActionR
 /** Undo a cancellation, as long as the meeting hasn't ended yet. */
 export async function restoreMeeting(id: string): Promise<ActionResult> {
   return runAction(async () => {
-    const me = await assertCap("meetings.manage");
+    const me = await assertCap("meetings.remove");
     const [m] = await db.select().from(meeting).where(eq(meeting.id, z.uuid().parse(id)));
     if (!m || m.status !== "cancelled") throw new UserError("Only a cancelled meeting can be restored.");
     if (m.endsAt <= new Date()) throw new UserError("This meeting is already over.");
@@ -282,7 +282,7 @@ export async function clearMeetingAttendance(id: string, reason?: string): Promi
  */
 export async function deleteMeeting(id: string): Promise<ActionResult> {
   return runAction(async () => {
-    const me = await assertCap("meetings.manage");
+    const me = await assertCap("meetings.remove");
     const [m] = await db.select().from(meeting).where(eq(meeting.id, z.uuid().parse(id)));
     if (!m) throw new UserError("Meeting not found.");
     const [[{ records }], awards] = await Promise.all([

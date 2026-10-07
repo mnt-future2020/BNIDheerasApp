@@ -1,11 +1,13 @@
 import { and, count, desc, eq, gte, lt } from "drizzle-orm";
 import type { Metadata } from "next";
 import { FeedbackStatusBadge } from "@/components/feedback-status";
+import { MonthFilter } from "@/components/month-filter";
 import { PageContainer, PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { feedback } from "@/db/schema";
+import { monthOptions, monthWindow, tenureMonthKeys } from "@/lib/months";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireMember } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
@@ -18,16 +20,20 @@ const PAGE_SIZE = 10;
 
 export default async function FeedbackPage({ searchParams }: PageProps<"/feedback">) {
   const me = await requireMember();
-  // Only what this member raised during the tenure being looked at.
+  // Only what this member raised during the tenure being looked at, narrowed
+  // to one of its months when one is picked — the same filter as every other list.
+  const sp = await searchParams;
   const tenure = await selectedTenure();
-  const range = tenure ? tenureRange(tenure) : null;
+  const months = tenure ? tenureMonthKeys(tenure) : [];
+  const month = typeof sp.m === "string" && months.includes(sp.m) ? sp.m : "";
+  const window = month ? monthWindow(month) : tenure ? tenureRange(tenure) : null;
   const mine = and(
     eq(feedback.memberId, me.id),
-    range ? gte(feedback.createdAt, range.from) : undefined,
-    range ? lt(feedback.createdAt, range.to) : undefined,
+    window ? gte(feedback.createdAt, window.from) : undefined,
+    window ? lt(feedback.createdAt, window.to) : undefined,
   );
   const [{ total }] = await db.select({ total: count() }).from(feedback).where(mine);
-  const { page, pageCount, offset } = paginate(pageFromParam((await searchParams).page), total, PAGE_SIZE);
+  const { page, pageCount, offset } = paginate(pageFromParam(sp.page), total, PAGE_SIZE);
   const rows = await db.select().from(feedback).where(mine).orderBy(desc(feedback.createdAt)).limit(PAGE_SIZE).offset(offset);
 
   return (
@@ -40,6 +46,13 @@ export default async function FeedbackPage({ searchParams }: PageProps<"/feedbac
       </Card>
 
       <h2 className="mb-2 font-semibold">What you&apos;ve sent</h2>
+      <MonthFilter
+        className="mb-3"
+        value={month}
+        months={monthOptions(months)}
+        allLabel="Whole tenure"
+        path="/feedback"
+      />
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing yet.</p>
       ) : (
@@ -66,7 +79,7 @@ export default async function FeedbackPage({ searchParams }: PageProps<"/feedbac
           ))}
         </div>
       )}
-      <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} href={(p) => pageHref("/feedback", {}, p)} />
+      <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} href={(p) => pageHref("/feedback", { m: month || undefined }, p)} />
     </PageContainer>
   );
 }

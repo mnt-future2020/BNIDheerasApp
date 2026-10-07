@@ -16,7 +16,6 @@ const ADMIN_CAPS: Capability[] = [
   "members.manage",
   "roles.manage",
   "devices.approve",
-  "leave.approve",
   "meetings.manage",
   "kiosk.run",
   "attendance.manual",

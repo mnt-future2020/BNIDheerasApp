@@ -362,7 +362,8 @@ export async function finalizeMeeting(input: { actorId: string; meetingId: strin
     const leaves = await tx
       .select()
       .from(leaveRequest)
-      .where(and(eq(leaveRequest.meetingId, locked.id), eq(leaveRequest.status, "approved")));
+      // No status to check: a reason is recorded as the member gave it.
+      .where(eq(leaveRequest.meetingId, locked.id));
     const medical = new Set(leaves.filter((l) => l.kind === "medical").map((l) => l.memberId));
 
     const now = new Date();

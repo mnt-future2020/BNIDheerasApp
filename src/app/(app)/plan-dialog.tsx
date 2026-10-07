@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Choice = "substitute" | "medical" | "informed";
 
-export function PlanDialog({ meetingId }: { meetingId: string }) {
+export function PlanDialog({ meetingId, meetingLabel }: { meetingId: string; meetingLabel: string }) {
   const [open, setOpen] = useState(false);
   const [choice, setChoice] = useState<Choice>("substitute");
   const [pending, start] = useTransition();
@@ -55,8 +55,13 @@ export function PlanDialog({ meetingId }: { meetingId: string }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Can&apos;t attend this meeting?</DialogTitle>
-          <DialogDescription>A substitute keeps your attendance clean. You can change this until the meeting starts.</DialogDescription>
+          {/* Named, not "this meeting": on a day with two, the card moves on to
+              the next one and the member would otherwise change the wrong one. */}
+          <DialogTitle>Can&apos;t attend {meetingLabel}?</DialogTitle>
+          <DialogDescription>
+            A substitute keeps your attendance clean. You can change this until the meeting ends, and take it back until
+            it starts.
+          </DialogDescription>
         </DialogHeader>
         <form action={submit} className="space-y-4">
           <RadioGroup value={choice} onValueChange={(v) => setChoice(v as Choice)} className="gap-3">

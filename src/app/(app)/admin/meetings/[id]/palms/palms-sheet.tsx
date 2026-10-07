@@ -27,7 +27,6 @@ type Row = {
   substitutePhone: string | null;
   leave: "medical" | "informed" | null;
   leaveReason: string | null;
-  leaveStatus: string | null;
 };
 
 /**
@@ -158,7 +157,7 @@ export function PalmsSheet({
                 {[
                   m.category,
                   m.substitute ? `Substitute: ${m.substitute}` : null,
-                  m.leave === "medical" ? "Medical leave approved" : m.leave === "informed" ? "Informed absence" : null,
+                  m.leave === "medical" ? "Medical leave" : m.leave === "informed" ? "Informed absence" : null,
                   m.method === "self_qr" && m.at ? `Checked in ${formatTime(new Date(m.at))}` : null,
                 ]
                   .filter(Boolean)
@@ -358,7 +357,7 @@ function AwayDialog({
             />
             {row.leaveReason ? (
               <p className="text-xs text-muted-foreground">
-                {row.leaveStatus === "approved" ? "On record" : `On record · ${row.leaveStatus}`}
+                {"On record"}
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">Nothing on record yet.</p>

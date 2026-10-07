@@ -10,7 +10,7 @@ import { getMeetingWithVenue } from "@/lib/attendance/queries";
 import { planDeadline, undoDeadline } from "@/lib/attendance/rules";
 import { audit } from "@/lib/audit";
 import { normalizePhone } from "@/lib/members";
-import { assertAnyCap, assertCap, assertMember } from "@/lib/session";
+import { assertCap, assertMember } from "@/lib/session";
 
 const TOO_LATE = "It's too late to change this for the meeting. Please speak to the LVH team or the Secretary.";
 
@@ -44,7 +44,10 @@ export async function requestLeave(input: z.input<typeof leaveSchema>): Promise<
     if (!me.isChapterMember) throw new UserError("This is an admin account, not a chapter member.");
     const data = leaveSchema.parse(input);
     const m = await openMeetingForMember(data.meetingId);
-    const status = data.kind === "informed" ? "approved" : "pending";
+    // Nobody signs this off. Medical leave is what the member tells the
+    // chapter, the same as a substitute or an informed absence: it is recorded
+    // as said, and the Head Table corrects it in PALMS if it turns out wrong.
+    const status = "approved";
     await db
       .insert(leaveRequest)
       .values({ meetingId: m.id, memberId: me.id, kind: data.kind, reason: data.reason, status })
@@ -52,6 +55,10 @@ export async function requestLeave(input: z.input<typeof leaveSchema>): Promise<
         target: [leaveRequest.meetingId, leaveRequest.memberId],
         set: { kind: data.kind, reason: data.reason, status, decidedAt: null, decidedById: null },
       });
+    // One plan per member per meeting. Someone who sent a substitute and then
+    // says they can't attend has changed their mind, and PALMS reads the
+    // substitute first — leaving it behind would keep the sheet on S.
+    await db.delete(substitute).where(and(eq(substitute.meetingId, m.id), eq(substitute.memberId, me.id)));
     await audit({ actorId: me.id, action: `leave.${data.kind}`, entity: "meeting", entityId: m.id, reason: data.reason });
     refresh();
     return null;
@@ -79,6 +86,9 @@ export async function registerSubstitute(input: z.input<typeof subSchema>): Prom
         target: [substitute.meetingId, substitute.memberId],
         set: { name: data.name, phone, business: data.business, arrivedAt: null, confirmedById: null },
       });
+    // The other half of one plan per meeting: sending someone replaces a reason
+    // given earlier, rather than sitting alongside it.
+    await db.delete(leaveRequest).where(and(eq(leaveRequest.meetingId, m.id), eq(leaveRequest.memberId, me.id)));
     await audit({ actorId: me.id, action: "substitute.register", entity: "meeting", entityId: m.id, after: { name: data.name } });
     refresh();
     return null;
@@ -113,7 +123,7 @@ const recordSchema = z.object({
  */
 export async function recordAbsence(input: z.input<typeof recordSchema>): Promise<ActionResult> {
   return runAction(async () => {
-    const me = await assertAnyCap(["attendance.manual", "leave.approve"]);
+    const me = await assertCap("attendance.manual");
     const data = recordSchema.parse(input);
     const m = await getMeetingWithVenue(data.meetingId);
     if (!m) throw new UserError("Meeting not found.");
@@ -152,30 +162,6 @@ export async function recordAbsence(input: z.input<typeof recordSchema>): Promis
       entityId: m.id,
       reason: data.reason,
       after: { member: who.name, kind: data.kind },
-    });
-    refresh();
-    return null;
-  });
-}
-
-export async function decideLeave(id: string, approve: boolean): Promise<ActionResult> {
-  return runAction(async () => {
-    const me = await assertCap("leave.approve");
-    const [current] = await db.select().from(leaveRequest).where(eq(leaveRequest.id, z.uuid().parse(id)));
-    if (!current) throw new UserError("Request not found.");
-    if (current.memberId === me.id && !me.fullAccess) throw new UserError("Someone else must decide your own leave.");
-    const [row] = await db
-      .update(leaveRequest)
-      .set({ status: approve ? "approved" : "rejected", decidedById: me.id, decidedAt: new Date() })
-      .where(eq(leaveRequest.id, current.id))
-      .returning();
-    const [who] = await db.select({ fullName: member.fullName }).from(member).where(eq(member.id, row.memberId));
-    await audit({
-      actorId: me.id,
-      action: approve ? "leave.approve" : "leave.reject",
-      entity: "leave_request",
-      entityId: row.id,
-      after: { member: who?.fullName },
     });
     refresh();
     return null;

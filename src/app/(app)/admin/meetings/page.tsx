@@ -32,6 +32,7 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
   // meetings.manage sees the create, cancel and delete controls.
   const me = await requireAnyCapPage(["meetings.manage", "attendance.manual", "kiosk.run", "palms.view", "meeting.finalize"]);
   const canManage = me.caps.has("meetings.manage");
+  const canRemove = me.caps.has("meetings.remove");
   const sp = await searchParams;
   const now = new Date();
   // Everything on this page belongs to the tenure picked in the header.
@@ -144,14 +145,14 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
           {today.length === 0 ? (
             <EmptyState title="No meeting today." />
           ) : (
-            <MeetingRows rows={today} counts={counts} canManage={canManage} showStatus />
+            <MeetingRows rows={today} counts={counts} canRemove={canRemove} showStatus />
           )}
         </TabsContent>
         <TabsContent value="upcoming">
           {upcoming.length === 0 ? (
             <EmptyState title="No upcoming meetings.">Create the weekly meeting to get started.</EmptyState>
           ) : (
-            <MeetingRows rows={upcoming} counts={counts} canManage={canManage} />
+            <MeetingRows rows={upcoming} counts={counts} canRemove={canRemove} />
           )}
           <Pagination
             page={up.page}
@@ -161,7 +162,7 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
             // Keeps the tab: without it, paging lands back on Today whenever there is a meeting today.
             href={(p) => pageHref("/admin/meetings", { tab: "upcoming", m: month || undefined, pp: keep(pa.page) }, p)}
           />
-          {canManage && cancelled.length ? (
+          {canRemove && cancelled.length ? (
             <div className="mt-6">
               <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Cancelled</h2>
               <div className="divide-y rounded-xl border bg-card">
@@ -198,7 +199,7 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
           ) : null}
         </TabsContent>
         <TabsContent value="past">
-          {past.length === 0 ? <EmptyState title="No past meetings yet." /> : <MeetingRows rows={past} counts={counts} canManage={canManage} showStatus />}
+          {past.length === 0 ? <EmptyState title="No past meetings yet." /> : <MeetingRows rows={past} counts={counts} canRemove={canRemove} showStatus />}
           <Pagination
             page={pa.page}
             pageCount={pa.pageCount}
@@ -220,12 +221,13 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
 function MeetingRows({
   rows,
   counts,
-  canManage,
+  canRemove,
   showStatus,
 }: {
   rows: { meeting: typeof meeting.$inferSelect; venueName: string | null }[];
   counts: Map<string, RecordCounts>;
-  canManage: boolean;
+  /** Cancel and delete: held apart from editing, so a scheduler can't call one off. */
+  canRemove: boolean;
   showStatus?: boolean;
 }) {
   return (
@@ -247,7 +249,7 @@ function MeetingRows({
             ) : null}
             <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
           </Link>
-          {canManage ? (
+          {canRemove ? (
             <>
               {m.status === "scheduled" ? <CancelMeetingButton id={m.id} iconOnly /> : null}
               <DeleteMeetingButton

@@ -19,7 +19,6 @@ export function FinalizeMeetingButton({
   visitorsEntered,
   inRoom,
   blanks,
-  pendingMedical,
   unconfirmedSubs,
 }: {
   meetingId: string;
@@ -31,7 +30,6 @@ export function FinalizeMeetingButton({
   inRoom: number;
   /** Members with no status yet. */
   blanks: number;
-  pendingMedical: string[];
   unconfirmedSubs: string[];
 }) {
   const router = useRouter();
@@ -67,12 +65,6 @@ export function FinalizeMeetingButton({
             ) : headcount !== inRoom ? (
               <p className="rounded-md bg-amber-50 p-2 text-amber-900">
                 Headcount is {headcount}, but PALMS has {inRoom} (Present + Late). Check the sheet before finalizing.
-              </p>
-            ) : null}
-            {pendingMedical.length ? (
-              <p className="rounded-md bg-amber-50 p-2 text-amber-900">
-                {pendingMedical.length} medical leave request(s) still pending, so they count as absent:{" "}
-                {pendingMedical.join(", ")}.
               </p>
             ) : null}
             {unconfirmedSubs.length ? (

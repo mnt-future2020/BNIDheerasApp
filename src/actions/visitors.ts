@@ -8,7 +8,7 @@ import { meeting, visitor } from "@/db/schema";
 import { type ActionResult, runAction, UserError } from "@/lib/action";
 import { audit } from "@/lib/audit";
 import { normalizePhone } from "@/lib/format";
-import { assertAnyCap } from "@/lib/session";
+import { assertCap } from "@/lib/session";
 
 const text = (max: number) =>
   z
@@ -39,7 +39,7 @@ const visitorsSchema = z.object({
 /** Saves the visitor count and the details taken for them (Admin → Meetings → Visitors). */
 export async function saveVisitors(input: z.input<typeof visitorsSchema>): Promise<ActionResult<{ saved: number }>> {
   return runAction(async () => {
-    const me = await assertAnyCap(["kiosk.run", "meeting.finalize"]);
+    const me = await assertCap("visitors.manage");
     const data = visitorsSchema.parse(input);
     const [m] = await db
       .select({ id: meeting.id, count: meeting.visitorCount, status: meeting.status })

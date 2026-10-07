@@ -56,7 +56,7 @@ export default async function SummaryPage({ params }: PageProps<"/meetings/[id]/
       .where(eq(visitor.meetingId, m.id))
       .orderBy(asc(visitor.createdAt)),
   ]);
-  const canEditVisitors = me.caps.has("kiosk.run") || me.caps.has("meeting.finalize");
+  const canEditVisitors = me.caps.has("visitors.manage");
   const finalizedBy = m.finalizedById
     ? (await db.select({ name: member.fullName }).from(member).where(eq(member.id, m.finalizedById)))[0]?.name
     : null;
@@ -88,9 +88,6 @@ export default async function SummaryPage({ params }: PageProps<"/meetings/[id]/
                 visitorsEntered={m.visitorCount !== null}
                 inRoom={checkedIn}
                 blanks={data.members.filter((r) => !r.status).length}
-                pendingMedical={data.members
-                  .filter((r) => r.leave?.kind === "medical" && r.leave.status === "pending")
-                  .map((r) => r.name)}
                 unconfirmedSubs={data.members.filter((r) => r.substitute && !r.substitute.arrived).map((r) => r.name)}
               />
             ) : null}
@@ -168,7 +165,7 @@ export default async function SummaryPage({ params }: PageProps<"/meetings/[id]/
                   {r.note ? <div className="text-muted-foreground">{r.note}</div> : null}
                   {r.leave && !r.substitute ? (
                     <div className="text-muted-foreground">
-                      {r.leave.kind === "medical" ? `Medical leave (${r.leave.status})` : "Informed absence"}
+                      {r.leave.kind === "medical" ? "Medical leave" : "Informed absence"}
                     </div>
                   ) : null}
                 </TableCell>

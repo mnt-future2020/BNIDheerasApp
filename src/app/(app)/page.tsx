@@ -125,8 +125,7 @@ export default async function HomePage() {
                   ) : state?.leave ? (
                     <div className="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2 text-sm">
                       <span>
-                        {state.leave.kind === "medical" ? "Medical leave" : "Informed absence"} ·{" "}
-                        <b>{state.leave.status}</b>
+                        {state.leave.kind === "medical" ? "Medical leave" : "Informed absence"}
                       </span>
                       {canUndo ? <CancelPlanButton meetingId={next.id} /> : null}
                     </div>
@@ -152,7 +151,7 @@ export default async function HomePage() {
                           Check-in opens at {formatDateTime(next.checkinOpensAt)}.
                         </p>
                       ) : null}
-                      {canPlan ? <PlanDialog meetingId={next.id} /> : null}
+                      {canPlan ? <PlanDialog meetingId={next.id} meetingLabel={`${next.title} · ${formatShortDate(next.startsAt)}, ${formatTime(next.startsAt)}`} /> : null}
                     </div>
                   )}
                 </>

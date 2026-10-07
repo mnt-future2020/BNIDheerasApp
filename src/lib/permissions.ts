@@ -19,10 +19,11 @@ export const CAPABILITIES = [
   "kiosk.run",
   "attendance.manual",
   "devices.approve",
-  "leave.approve",
   "meeting.finalize",
   "palms.view",
   "meetings.manage",
+  "meetings.remove",
+  "visitors.manage",
   "awards.manage",
   "calendar.manage",
   "feedback.manage",
@@ -62,8 +63,18 @@ type PermissionModule = {
 export const PERMISSION_MODULES: PermissionModule[] = [
   {
     module: "Meetings & venues",
-    note: "Schedule a weekly series or one meeting, edit, cancel, delete; add venues while scheduling",
-    does: { view: "meetings.manage", create: "meetings.manage", edit: "meetings.manage", delete: "meetings.manage" },
+    note: "Schedule a weekly series or one meeting, edit it, add venues while scheduling",
+    does: { view: "meetings.manage", create: "meetings.manage", edit: "meetings.manage", delete: "meetings.remove" },
+  },
+  {
+    module: "Cancelling a meeting",
+    note: "Call one off, put it back, or delete it outright — the same hands as deleting",
+    does: { edit: "meetings.remove", delete: "meetings.remove" },
+  },
+  {
+    module: "Visitors",
+    note: "Who visited a meeting, and how many",
+    does: { view: "visitors.manage", create: "visitors.manage", edit: "visitors.manage" },
   },
   {
     module: "PALMS",
@@ -85,7 +96,6 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     note: "Approve or reject a phone for check-in, from the member's Action list",
     does: { view: "devices.approve", edit: "devices.approve" },
   },
-  { module: "Medical leave", note: "Approve or decline a member's request", does: { view: "leave.approve", edit: "leave.approve" } },
   {
     module: "Weekly recognitions",
     note: "Pick the winners, publish, unpublish, and see the leaderboard",
@@ -160,11 +170,12 @@ const ROLE_CAPS: Record<Role, readonly Capability[]> = {
   // Meetings and venues, whole. Not PALMS (attendance.manual), not the summary
   // (palms.view) and not the venue screen's QR (kiosk.run): entering who came
   // and reading it back stay with the Attendance Coordinator.
-  lvh: ["meetings.manage"],
-  // Meetings and venues too, plus entering PALMS and reading the summary back.
-  // No kiosk.run or meeting.finalize, which is what puts Visitors on a meeting,
-  // so counting visitors stays off this role.
-  attendance_coordinator: ["meetings.manage", "attendance.manual", "palms.view"],
+  // Schedules and edits meetings, and records who visited. Not cancelling or
+  // deleting one, not PALMS, not the summary, and not the venue screen's QR.
+  lvh: ["meetings.manage", "visitors.manage"],
+  // PALMS and the summary that reads it back. The meeting itself is somebody
+  // else's: no creating, editing, cancelling or deleting, and no visitors.
+  attendance_coordinator: ["attendance.manual", "palms.view"],
   event_coordinator: ["calendar.manage"],
 };
 

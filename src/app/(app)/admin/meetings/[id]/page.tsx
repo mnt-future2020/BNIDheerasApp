@@ -22,6 +22,8 @@ export default async function EditMeetingPage({ params }: PageProps<"/admin/meet
   // the top; editing, cancelling and deleting stay with meetings.manage.
   const me = await requireAnyCapPage(["meetings.manage", "attendance.manual", "kiosk.run", "palms.view", "meeting.finalize"]);
   const canManage = me.caps.has("meetings.manage");
+  // Calling a meeting off, or putting it back, is not the same job as editing one.
+  const canRemove = me.caps.has("meetings.remove");
   const { id } = await params;
   const m = await getMeetingWithVenue(id);
   if (!m) notFound();
@@ -40,7 +42,7 @@ export default async function EditMeetingPage({ params }: PageProps<"/admin/meet
                 <Link href={`/admin/meetings/${m.id}/palms`}>PALMS</Link>
               </Button>
             ) : null}
-            {m.status !== "cancelled" && (me.caps.has("kiosk.run") || me.caps.has("meeting.finalize")) ? (
+            {m.status !== "cancelled" && me.caps.has("visitors.manage") ? (
               <Button asChild variant="outline">
                 {/* 0 visitors is an answer, so it shows; only "not entered" stays blank. */}
                 <Link href={`/admin/meetings/${m.id}/visitors`}>
@@ -57,7 +59,7 @@ export default async function EditMeetingPage({ params }: PageProps<"/admin/meet
             {/* The LVH desk's job, on the meeting it is run for. One button:
                 the link already carries the pairing code. */}
             {m.status === "scheduled" && me.caps.has("kiosk.run") ? <CopyQrLinkButton meetingId={m.id} /> : null}
-            {canManage && m.status === "cancelled" && m.endsAt > new Date() ? (
+            {canRemove && m.status === "cancelled" && m.endsAt > new Date() ? (
               <ConfirmButton
                 label="Restore"
                 title="Restore this meeting?"
