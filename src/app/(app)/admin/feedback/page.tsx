@@ -1,10 +1,12 @@
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 import type { Metadata } from "next";
 import { FeedbackStatusBadge } from "@/components/feedback-status";
+import { MonthFilter } from "@/components/month-filter";
 import { EmptyState, PageContainer, PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { db } from "@/db";
 import { feedback, member } from "@/db/schema";
+import { monthOptions, monthWindow, tenureMonthKeys } from "@/lib/months";
 import { requireCapPage } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDateTime } from "@/lib/time";
@@ -15,19 +17,23 @@ export const metadata: Metadata = { title: "Suggestions & feedback" };
 /** Enough to hold a term's worth; older ones are in the audit log. */
 const LIMIT = 200;
 
-export default async function FeedbackAdminPage() {
+export default async function FeedbackAdminPage({ searchParams }: PageProps<"/admin/feedback">) {
   await requireCapPage("feedback.manage");
-  // What members raised during the tenure being looked at.
+  // What members raised during the tenure being looked at, or one month of it.
   const tenure = await selectedTenure();
   const range = tenure ? tenureRange(tenure) : null;
+  const months = tenure ? tenureMonthKeys(tenure) : [];
+  const sp = await searchParams;
+  const month = typeof sp.m === "string" && months.includes(sp.m) ? sp.m : "";
+  const picked = month ? monthWindow(month) : range;
   const rows = await db
     .select({ f: feedback, name: member.fullName })
     .from(feedback)
     .innerJoin(member, eq(member.id, feedback.memberId))
     .where(
       and(
-        range ? gte(feedback.createdAt, range.from) : undefined,
-        range ? lt(feedback.createdAt, range.to) : undefined,
+        picked ? gte(feedback.createdAt, picked.from) : undefined,
+        picked ? lt(feedback.createdAt, picked.to) : undefined,
       ),
     )
     .orderBy(desc(feedback.createdAt))
@@ -45,6 +51,13 @@ export default async function FeedbackAdminPage() {
         title="Suggestions & feedback"
         back={{ href: "/admin", label: "Admin" }}
         description="Consider it or not — either way the member hears back."
+      />
+      <MonthFilter
+        className="mb-4"
+        value={month}
+        months={monthOptions(months)}
+        allLabel="Whole tenure"
+        href={(key) => (key ? `/admin/feedback?m=${key}` : "/admin/feedback")}
       />
       <div className="space-y-8">
         {sections.map((s) => {

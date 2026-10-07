@@ -2,16 +2,17 @@ import { and, count, desc, gte, lt, lte, ne, sql } from "drizzle-orm";
 import { ChevronRightIcon, TrophyIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MonthFilter } from "@/components/month-filter";
 import { EmptyState, PageContainer, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { award, meeting } from "@/db/schema";
 import { ensureDefaults } from "@/lib/defaults";
+import { monthOf, monthOptions } from "@/lib/months";
 import { requireCapPage } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
-import { daysFromNow, formatDate, formatMonth, formatTime, istToDate, toIstDateInput } from "@/lib/time";
-import { MonthFilter } from "./month-filter";
+import { daysFromNow, formatDate, formatTime } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Weekly recognitions" };
 
@@ -46,9 +47,9 @@ export default async function AwardsAdminPage({ searchParams }: PageProps<"/admi
   const stateOf = new Map(saved.map((s) => [s.meetingId, s]));
 
   const { month: monthParam } = await searchParams;
-  const months = [...new Set(meetings.map((m) => toIstDateInput(m.startsAt).slice(0, 7)))];
-  const month = typeof monthParam === "string" && months.includes(monthParam) ? monthParam : months[0];
-  const shown = meetings.filter((m) => toIstDateInput(m.startsAt).startsWith(month ?? ""));
+  const months = [...new Set(meetings.map((m) => monthOf(m.startsAt)))];
+  const month = typeof monthParam === "string" && months.includes(monthParam) ? monthParam : (months[0] ?? "");
+  const shown = meetings.filter((m) => monthOf(m.startsAt) === month);
 
   return (
     <PageContainer>
@@ -68,7 +69,7 @@ export default async function AwardsAdminPage({ searchParams }: PageProps<"/admi
         <EmptyState title="No meetings yet.">Create a meeting first.</EmptyState>
       ) : (
         <div className="space-y-3">
-          <MonthFilter month={month ?? ""} months={months.map((key) => ({ key, label: formatMonth(istToDate(`${key}-01`)) }))} />
+          <MonthFilter value={month} months={monthOptions(months)} href={(key) => `/admin/awards?month=${key}`} />
           <div className="divide-y rounded-xl border bg-card">
             {shown.map((m) => {
               const s = stateOf.get(m.id);

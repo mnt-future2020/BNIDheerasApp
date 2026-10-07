@@ -35,10 +35,13 @@
 >   - Roles & terms shows each role's permissions behind an eye icon, and lists the app admins with the roles.
 > - **D11 The whole Head Table = Admin (6 Oct 2026):** the Vice President and the Secretary / Treasurer now have every capability, like the President (D7).
 >   - They are all outside the separation-of-duties rule (§3), so one of them may hold LVH roles as well; their actions are audit-logged instead.
->   - **The cost:** any of them can reset the others' and the Admin's password to the chapter default and sign in as them, and can use `/setup` admin recovery while `SETUP_TOKEN` is set. The chapter accepted this.
+>   - **The cost:** any of them can reset the others' and the Admin's password to the chapter default and sign in as them. The chapter accepted this.
 > - **D12 PALMS and visitor entry (6 Oct 2026):** Admin → Meetings → a meeting has **Enter PALMS** (one tap per member for P/A/L/M/S, for meetings recorded on paper) and **Visitors** (the count, then that many cards for name, mobile, business, category, invited by and a note).
 >   - Changing attendance that is already recorded needs a reason; the first entry doesn't. Both go to the audit log.
 >   - Visitor details appear on the PALMS summary and in the PALMS CSV.
+> - **D13 No setup page (7 Oct 2026):** `/setup` is removed, along with first-time setup, admin recovery and `SETUP_TOKEN`.
+>   - It sat outside the login wall, and while the token was set it could reset any admin's or the President's password from a public URL.
+>   - **The cost:** a fresh database has no in-app way to create its first admin — that is now a database insert — and an admin locked out with no other admin or President able to sign in has to be reset in the database too.
 
 ---
 

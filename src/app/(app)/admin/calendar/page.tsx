@@ -1,10 +1,12 @@
 import { and, asc, count, eq, gte, lt } from "drizzle-orm";
 import type { Metadata } from "next";
+import { MonthFilter } from "@/components/month-filter";
 import { PageContainer, PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { db } from "@/db";
 import { CALENDAR_KINDS, calendarEvent, member, RETIRED_CALENDAR_KINDS } from "@/db/schema";
 import { kindLabel } from "@/lib/calendar";
+import { monthOptions, monthWindow, tenureMonthKeys } from "@/lib/months";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireCapPage } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
@@ -18,16 +20,23 @@ const PAGE_SIZE = 15;
 export default async function CalendarAdminPage({ searchParams }: PageProps<"/admin/calendar">) {
   await requireCapPage("calendar.manage");
 
-  // The tenure being looked at; within it, upcoming items and last week's.
+  // The tenure being looked at; within it, upcoming items and last week's —
+  // unless a month is picked, which shows that whole month, past days included.
+  const sp = await searchParams;
   const tenure = await selectedTenure();
   const range = tenure ? tenureRange(tenure) : null;
-  const shown = and(
-    gte(calendarEvent.endsAt, daysFromNow(-7)),
-    range ? gte(calendarEvent.startsAt, range.from) : undefined,
-    range ? lt(calendarEvent.startsAt, range.to) : undefined,
-  );
+  const months = tenure ? tenureMonthKeys(tenure) : [];
+  const month = typeof sp.m === "string" && months.includes(sp.m) ? sp.m : "";
+  const picked = month ? monthWindow(month) : null;
+  const shown = picked
+    ? and(gte(calendarEvent.startsAt, picked.from), lt(calendarEvent.startsAt, picked.to))
+    : and(
+        gte(calendarEvent.endsAt, daysFromNow(-7)),
+        range ? gte(calendarEvent.startsAt, range.from) : undefined,
+        range ? lt(calendarEvent.startsAt, range.to) : undefined,
+      );
   const [{ total }] = await db.select({ total: count() }).from(calendarEvent).where(shown);
-  const { page, pageCount, offset } = paginate(pageFromParam((await searchParams).page), total, PAGE_SIZE);
+  const { page, pageCount, offset } = paginate(pageFromParam(sp.page), total, PAGE_SIZE);
   const [events, members, used] = await Promise.all([
     db.select().from(calendarEvent).where(shown).orderBy(asc(calendarEvent.startsAt)).limit(PAGE_SIZE).offset(offset),
     db.select({ id: member.id, name: member.fullName }).from(member).where(and(eq(member.status, "active"), eq(member.isChapterMember, true))).orderBy(asc(member.fullName)),
@@ -44,6 +53,13 @@ export default async function CalendarAdminPage({ searchParams }: PageProps<"/ad
         title="Manage events"
         back={{ href: "/admin", label: "Admin" }}
         description="Weekly meetings appear automatically. Add feature presentations and education slots here."
+      />
+      <MonthFilter
+        className="mb-4"
+        value={month}
+        months={monthOptions(months)}
+        allLabel="Upcoming"
+        href={(key) => (key ? `/admin/calendar?m=${key}` : "/admin/calendar")}
       />
       <CalendarAdmin
         kinds={kinds.map((k) => ({ key: k, label: kindLabel(k) }))}
@@ -67,7 +83,7 @@ export default async function CalendarAdminPage({ searchParams }: PageProps<"/ad
         pageCount={pageCount}
         total={total}
         pageSize={PAGE_SIZE}
-        href={(p) => pageHref("/admin/calendar", {}, p)}
+        href={(p) => pageHref("/admin/calendar", { m: month || undefined }, p)}
       />
     </PageContainer>
   );

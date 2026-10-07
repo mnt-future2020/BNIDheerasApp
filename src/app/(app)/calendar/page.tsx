@@ -1,13 +1,15 @@
 import { ClockIcon, MapPinIcon, UserIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MonthFilter } from "@/components/month-filter";
 import { PageContainer, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { calendarItems, kindLabel } from "@/lib/calendar";
+import { monthOf, monthOptions, monthWindow, tenureMonthKeys } from "@/lib/months";
 import { requireMember } from "@/lib/session";
 import { selectedTenure } from "@/lib/tenure";
-import { formatDate, formatMonth, formatTime, istToDate, toIstDateInput } from "@/lib/time";
+import { formatDate, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { LinkSelect } from "./filters";
 
@@ -20,6 +22,7 @@ export const metadata: Metadata = { title: "Events" };
 const ALL_KINDS = "__all";
 
 const CUSTOM_COLOR = "bg-neutral-500 text-white";
+
 const KIND_COLORS: Record<string, string> = {
   meeting: "bg-primary text-primary-foreground",
   event: "bg-sky-600 text-white",
@@ -28,33 +31,16 @@ const KIND_COLORS: Record<string, string> = {
   education_slot: "bg-amber-600 text-white",
 };
 
-/** Every month from one yyyy-mm to another, inclusive. */
-function monthsBetween(from: string, to: string) {
-  const list: string[] = [];
-  const [fy, fm] = from.split("-").map(Number);
-  const [ty, tm] = to.split("-").map(Number);
-  for (let i = 0; fy * 12 + fm + i <= ty * 12 + tm; i++) {
-    const d = new Date(Date.UTC(fy, fm - 1 + i, 1));
-    list.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
-  }
-  return list;
-}
-
 export default async function EventsPage({ searchParams }: PageProps<"/calendar">) {
   const me = await requireMember();
   const { m, mine, kind } = await searchParams;
-  const today = toIstDateInput(new Date());
-  // The months to offer: the tenure being looked at, else a year around today.
+  const thisMonth = monthOf(new Date());
+  // The months to offer: the tenure being looked at, else this month alone.
   const tenure = await selectedTenure();
-  const months = tenure
-    ? monthsBetween(tenure.startsOn.slice(0, 7), tenure.endsOn.slice(0, 7))
-    : monthsBetween(today.slice(0, 7), today.slice(0, 7));
-  const fallback = months.includes(today.slice(0, 7)) ? today.slice(0, 7) : (months[0] ?? today.slice(0, 7));
+  const months = tenure ? tenureMonthKeys(tenure) : [thisMonth];
+  const fallback = months.includes(thisMonth) ? thisMonth : (months[0] ?? thisMonth);
   const month = typeof m === "string" && months.includes(m) ? m : fallback;
-  const [y, mo] = month.split("-").map(Number);
-  const monthStart = istToDate(`${month}-01`);
-  const nextMonth = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
-  const monthEnd = istToDate(`${nextMonth}-01`);
+  const { from: monthStart, to: monthEnd } = monthWindow(month);
 
   const onlyMine = mine === "1";
   const kindFilter = typeof kind === "string" && kind ? kind : null;
@@ -84,16 +70,7 @@ export default async function EventsPage({ searchParams }: PageProps<"/calendar"
       {/* All three narrow the same list, so they sit on one row together rather
           than "My slots" living apart up in the page actions. */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <LinkSelect
-          label="Month"
-          value={month}
-          className="min-w-40 flex-1 sm:max-w-52"
-          options={months.map((key) => ({
-            key,
-            label: formatMonth(istToDate(`${key}-01`)),
-            href: href({ m: key }),
-          }))}
-        />
+        <MonthFilter value={month} months={monthOptions(months)} href={(key) => href({ m: key })} />
         {kinds.length > 1 ? (
           <LinkSelect
             label="Type"

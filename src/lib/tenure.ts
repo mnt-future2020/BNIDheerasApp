@@ -40,17 +40,8 @@ export async function selectedTenure(): Promise<Tenure | null> {
   return all.find((t) => t.id === picked) ?? (await currentTenure()) ?? all[0];
 }
 
-/**
- * The calendar months a tenure runs through, in order from the month it starts.
- * Birthdays and anniversaries repeat every year, so only the month matters —
- * a six-month tenure gives six months, and anything longer is capped at twelve.
- */
-export function tenureMonths(t: Tenure): number[] {
-  const [startYear, startMonth] = t.startsOn.split("-").map(Number);
-  const [endYear, endMonth] = t.endsOn.split("-").map(Number);
-  const span = Math.min(12, Math.max(1, (endYear - startYear) * 12 + (endMonth - startMonth) + 1));
-  return Array.from({ length: span }, (_, i) => ((startMonth - 1 + i) % 12) + 1);
-}
+/* The months a tenure runs through live in lib/months.ts (tenureMonthKeys),
+   with the rest of the month-dropdown maths. */
 
 /** The window a tenure covers, as instants, for filtering by date. */
 export function tenureRange(t: Tenure): { from: Date; to: Date } {

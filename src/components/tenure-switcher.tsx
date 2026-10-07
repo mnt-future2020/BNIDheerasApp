@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { toast } from "sonner";
 import { chooseTenure } from "@/actions/tenure";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Tenure } from "@/lib/tenure";
@@ -20,8 +21,12 @@ export function TenureSwitcher({ tenures, selected }: { tenures: Tenure[]; selec
       disabled={pending}
       onValueChange={(id) =>
         start(async () => {
+          // chooseTenure only sets a cookie — there is nothing it can refuse.
           await chooseTenure(id);
           router.refresh();
+          // Every list on the page quietly changes underneath, so say so.
+          const name = tenures.find((t) => t.id === id)?.name;
+          toast.success(name ? `Showing ${name}.` : "Tenure changed.");
         })
       }
     >

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lt } from "drizzle-orm";
 import { CakeIcon, CalendarIcon, ClockIcon, MapPinIcon, ScanLineIcon, TrophyIcon } from "lucide-react";
 import Link from "next/link";
 import { CelebrationRow } from "@/components/celebration-row";
@@ -18,6 +18,7 @@ import { getMemberDevices } from "@/lib/devices";
 import { requireMember } from "@/lib/session";
 import { accountName } from "@/lib/settings";
 import { publicUrl } from "@/lib/storage";
+import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDate, formatDateTime, formatShortDate, formatTime } from "@/lib/time";
 import { CancelPlanButton, PlanDialog } from "./plan-dialog";
 
@@ -26,11 +27,24 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const { denied } = await searchParams;
   const [devices, next] = await Promise.all([getMemberDevices(me.id), getCurrentOrNextMeeting()]);
   const state = next ? await memberMeetingState(me.id, next.id) : null;
-  const winners = await latestWinners();
+  // The cards that list what happened follow the tenure picked in the header,
+  // like every other page. Checking in and the next meeting are about today,
+  // so they stay put: switching the view can't change what you may do now.
+  const tenure = await selectedTenure();
+  const range = tenure ? tenureRange(tenure) : null;
+  const winners = await latestWinners(range);
   const upcoming = await db
     .select()
     .from(calendarEvent)
-    .where(gte(calendarEvent.endsAt, new Date()))
+    .where(
+      range
+        ? and(
+            gte(calendarEvent.endsAt, new Date()),
+            gte(calendarEvent.startsAt, range.from),
+            lt(calendarEvent.startsAt, range.to),
+          )
+        : gte(calendarEvent.endsAt, new Date()),
+    )
     .orderBy(asc(calendarEvent.startsAt))
     .limit(3);
 
@@ -191,14 +205,16 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 /**
  * Only the recognitions published most recently — by when they were published,
  * not by meeting date, so entering a new week always replaces what is on the
- * home screen even if an older week is filled in afterwards.
+ * home screen even if an older week is filled in afterwards. Within the tenure
+ * being looked at, so this agrees with the Recognitions page.
  */
-async function latestWinners() {
+async function latestWinners(range: { from: Date; to: Date } | null) {
+  const published = eq(award.published, true);
   const [latest] = await db
     .select({ meetingId: meeting.id, date: meeting.startsAt })
     .from(award)
     .innerJoin(meeting, eq(meeting.id, award.meetingId))
-    .where(eq(award.published, true))
+    .where(range ? and(published, gte(meeting.startsAt, range.from), lt(meeting.startsAt, range.to)) : published)
     .orderBy(desc(award.updatedAt))
     .limit(1);
   if (!latest) return null;

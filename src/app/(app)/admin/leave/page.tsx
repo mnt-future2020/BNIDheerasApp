@@ -1,14 +1,17 @@
-import { and, asc, count, desc, eq, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lt, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Metadata } from "next";
+import { MonthFilter } from "@/components/month-filter";
 import { EmptyState, PageContainer, PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { db } from "@/db";
 import { leaveRequest, meeting, member } from "@/db/schema";
+import { monthOptions, monthWindow, tenureMonthKeys } from "@/lib/months";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireCapPage } from "@/lib/session";
+import { selectedTenure } from "@/lib/tenure";
 import { formatDate, formatDateTime } from "@/lib/time";
 import { ChangeLeaveDecision, LeaveDecision } from "./leave-decision";
 
@@ -19,8 +22,20 @@ const decider = alias(member, "decider");
 
 export default async function LeavePage({ searchParams }: PageProps<"/admin/leave">) {
   await requireCapPage("leave.approve");
+  const sp = await searchParams;
+  // Pending requests always show, however old: they are waiting on a decision.
+  // The decisions below them can be narrowed to one month of the tenure.
+  const tenure = await selectedTenure();
+  const months = tenure ? tenureMonthKeys(tenure) : [];
+  const month = typeof sp.m === "string" && months.includes(sp.m) ? sp.m : "";
+  const picked = month ? monthWindow(month) : null;
   const medical = eq(leaveRequest.kind, "medical");
-  const decidedWhere = and(medical, ne(leaveRequest.status, "pending"));
+  const decidedWhere = and(
+    medical,
+    ne(leaveRequest.status, "pending"),
+    picked ? gte(meeting.startsAt, picked.from) : undefined,
+    picked ? lt(meeting.startsAt, picked.to) : undefined,
+  );
   const [pending, [{ total }]] = await Promise.all([
     // Every pending request, however old, oldest first.
     db
@@ -30,9 +45,13 @@ export default async function LeavePage({ searchParams }: PageProps<"/admin/leav
       .innerJoin(meeting, eq(meeting.id, leaveRequest.meetingId))
       .where(and(medical, eq(leaveRequest.status, "pending")))
       .orderBy(asc(meeting.startsAt)),
-    db.select({ total: count() }).from(leaveRequest).where(decidedWhere),
+    db
+      .select({ total: count() })
+      .from(leaveRequest)
+      .innerJoin(meeting, eq(meeting.id, leaveRequest.meetingId))
+      .where(decidedWhere),
   ]);
-  const { page, pageCount, offset } = paginate(pageFromParam((await searchParams).page), total, PAGE_SIZE);
+  const { page, pageCount, offset } = paginate(pageFromParam(sp.page), total, PAGE_SIZE);
   const decided = await db
     .select({
       leave: leaveRequest,
@@ -77,9 +96,18 @@ export default async function LeavePage({ searchParams }: PageProps<"/admin/leav
           ))}
         </div>
       )}
-      {decided.length ? (
+      {months.length > 1 || decided.length ? (
         <>
-          <h2 className="mt-8 mb-2 font-semibold">Decisions</h2>
+          <div className="mt-8 mb-2 flex flex-wrap items-center gap-2">
+            <h2 className="font-semibold">Decisions</h2>
+            <MonthFilter
+              value={month}
+              months={monthOptions(months)}
+              allLabel="All months"
+              href={(key) => (key ? `/admin/leave?m=${key}` : "/admin/leave")}
+            />
+          </div>
+          {decided.length === 0 ? <EmptyState title="No decisions that month." /> : null}
           <div className="divide-y rounded-xl border text-sm">
             {decided.map((r) => (
               <div key={r.leave.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
@@ -102,7 +130,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/admin/leav
               </div>
             ))}
           </div>
-          <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} href={(p) => pageHref("/admin/leave", {}, p)} />
+          <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} href={(p) => pageHref("/admin/leave", { m: month || undefined }, p)} />
         </>
       ) : null}
     </PageContainer>

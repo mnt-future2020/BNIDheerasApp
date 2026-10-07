@@ -2,14 +2,15 @@ import { and, count, desc, eq, gte, lt } from "drizzle-orm";
 import { ChevronRightIcon, TrophyIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MonthFilter } from "@/components/month-filter";
 import { EmptyState, PageContainer, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { award, meeting } from "@/db/schema";
+import { monthOf, monthOptions } from "@/lib/months";
 import { requireMember } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
-import { formatDate, formatMonth, istToDate, toIstDateInput } from "@/lib/time";
-import { MonthFilter } from "./month-filter";
+import { formatDate } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Recognitions" };
 
@@ -33,9 +34,9 @@ export default async function AwardsPage({ searchParams }: PageProps<"/awards">)
     .orderBy(desc(meeting.startsAt));
 
   const { month: monthParam } = await searchParams;
-  const months = [...new Set(weeks.map((w) => toIstDateInput(w.date).slice(0, 7)))];
+  const months = [...new Set(weeks.map((w) => monthOf(w.date)))];
   const month = typeof monthParam === "string" && months.includes(monthParam) ? monthParam : "";
-  const shown = month ? weeks.filter((w) => toIstDateInput(w.date).startsWith(month)) : weeks;
+  const shown = month ? weeks.filter((w) => monthOf(w.date) === month) : weeks;
 
   return (
     <PageContainer>
@@ -55,8 +56,10 @@ export default async function AwardsPage({ searchParams }: PageProps<"/awards">)
       ) : (
         <div className="space-y-3">
           <MonthFilter
-            month={month}
-            months={months.map((key) => ({ key, label: formatMonth(istToDate(`${key}-01`)) }))}
+            value={month}
+            months={monthOptions(months)}
+            allLabel="All months"
+            href={(key) => (key ? `/awards?month=${key}` : "/awards")}
           />
           {shown.length === 0 ? (
             <EmptyState title="No recognitions that month." />

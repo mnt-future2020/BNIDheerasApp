@@ -3,7 +3,7 @@ import { PageContainer, PageHeader } from "@/components/page-header";
 import { getDefaultPassword } from "@/lib/passwords";
 import { requireCapPage } from "@/lib/session";
 import { getChapterAdmin } from "@/lib/settings";
-import { currentTenure, listTenures } from "@/lib/tenure";
+import { currentTenure, listTenures, selectedTenure } from "@/lib/tenure";
 import { formatDate, toIstDateInput } from "@/lib/time";
 import { ChapterAdminForm } from "./chapter-admin-form";
 import { DefaultPasswordForm } from "./default-password-form";
@@ -18,10 +18,11 @@ export default async function SettingsPage() {
   const me = await requireCapPage("settings.manage");
   const now = new Date();
   const today = toIstDateInput(now);
-  const [defaultPassword, tenures, current, chapterAdmin] = await Promise.all([
+  const [defaultPassword, tenures, current, selected, chapterAdmin] = await Promise.all([
     getDefaultPassword(),
     listTenures(),
     currentTenure(now),
+    selectedTenure(),
     getChapterAdmin(),
   ]);
   return (
@@ -53,7 +54,7 @@ export default async function SettingsPage() {
               </span>
             )}
           </p>
-          <TenureForm tenures={tenures} today={today} />
+          <TenureForm tenures={tenures} today={today} selected={selected?.id ?? ""} />
         </>
       ) : null}
       <h2 className="mt-6 mb-2 font-semibold">Member sign-in</h2>

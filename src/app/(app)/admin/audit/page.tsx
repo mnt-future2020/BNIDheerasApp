@@ -2,12 +2,14 @@ import { and, count, desc, eq, gte, like, lt, or } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageContainer, PageHeader } from "@/components/page-header";
+import { MonthFilter } from "@/components/month-filter";
 import { Pagination } from "@/components/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db } from "@/db";
 import { auditLog, member } from "@/db/schema";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireCapPage } from "@/lib/session";
+import { monthOptions, monthWindow, tenureMonthKeys } from "@/lib/months";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDateTime } from "@/lib/time";
 
@@ -26,7 +28,7 @@ const FILTERS: { key: string; label: string; prefixes: string[] }[] = [
   { key: "awards", label: "Recognitions", prefixes: ["awards"] },
   { key: "calendar", label: "Calendar", prefixes: ["calendar"] },
   { key: "feedback", label: "Feedback", prefixes: ["feedback"] },
-  { key: "settings", label: "Settings", prefixes: ["settings", "setup"] },
+  { key: "settings", label: "Settings", prefixes: ["settings"] },
 ];
 
 export default async function AuditPage({ searchParams }: PageProps<"/admin/audit">) {
@@ -36,10 +38,14 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
   // What was done during the tenure being looked at.
   const tenure = await selectedTenure();
   const range = tenure ? tenureRange(tenure) : null;
+  const months = tenure ? tenureMonthKeys(tenure) : [];
+  const month = typeof sp.m === "string" && months.includes(sp.m) ? sp.m : "";
+  // A month narrows the tenure; without one, the whole tenure is listed.
+  const picked = month ? monthWindow(month) : range;
   const where = and(
     filter.prefixes.length ? or(...filter.prefixes.map((p) => like(auditLog.action, `${p}.%`))) : undefined,
-    range ? gte(auditLog.at, range.from) : undefined,
-    range ? lt(auditLog.at, range.to) : undefined,
+    picked ? gte(auditLog.at, picked.from) : undefined,
+    picked ? lt(auditLog.at, picked.to) : undefined,
   );
   const [{ total }] = await db.select({ total: count() }).from(auditLog).where(where);
   const { page, pageCount, offset } = paginate(pageFromParam(sp.page), total, PAGE_SIZE);
@@ -59,11 +65,18 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
         back={{ href: "/admin", label: "Admin" }}
         description="Every manual attendance change, approval and setting change, with who did it and why."
       />
+      <MonthFilter
+        className="mb-3"
+        value={month}
+        months={monthOptions(months)}
+        allLabel="Whole tenure"
+        href={(key) => pageHref("/admin/audit", { f: filter.key || undefined, m: key || undefined }, 1)}
+      />
       <div className="mb-3 flex flex-wrap gap-2">
         {FILTERS.map((x) => (
           <Link
             key={x.key}
-            href={pageHref("/admin/audit", { f: x.key || undefined }, 1)}
+            href={pageHref("/admin/audit", { f: x.key || undefined, m: month || undefined }, 1)}
             className={`rounded-full border px-3 py-1 text-sm ${filter.key === x.key ? "border-primary bg-primary/10 text-primary" : ""}`}
           >
             {x.label}
@@ -116,7 +129,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
           </TableBody>
         </Table>
       </div>
-      <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} href={(p) => pageHref("/admin/audit", { f: filter.key || undefined }, p)} />
+      <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} href={(p) => pageHref("/admin/audit", { f: filter.key || undefined, m: month || undefined }, p)} />
     </PageContainer>
   );
 }

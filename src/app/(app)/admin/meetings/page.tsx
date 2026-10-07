@@ -5,6 +5,7 @@ import Link from "next/link";
 import { restoreMeeting } from "@/actions/meetings";
 import { ConfirmButton } from "@/components/confirm-button";
 import { DeleteMeetingButton } from "@/components/delete-meeting-button";
+import { MonthFilter } from "@/components/month-filter";
 import { EmptyState, PageContainer, PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from "@/db";
 import { meeting, venue } from "@/db/schema";
 import { type RecordCounts, recordCounts } from "@/lib/attendance/queries";
+import { monthOptions, monthWindow, tenureMonthKeys } from "@/lib/months";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireAnyCapPage } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
@@ -37,8 +39,14 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
   const inTenure = tenure
     ? and(gte(meeting.startsAt, tenureRange(tenure).from), lt(meeting.startsAt, tenureRange(tenure).to))
     : undefined;
-  const isUpcoming = and(inTenure, gte(meeting.endsAt, now), eq(meeting.status, "scheduled"));
-  const isPast = and(inTenure, lt(meeting.endsAt, now));
+  // Upcoming and Past can be narrowed to one month of the tenure; Today is today.
+  const months = tenure ? tenureMonthKeys(tenure) : [];
+  const month = typeof sp.m === "string" && months.includes(sp.m) ? sp.m : "";
+  const inMonth = month
+    ? and(gte(meeting.startsAt, monthWindow(month).from), lt(meeting.startsAt, monthWindow(month).to))
+    : undefined;
+  const isUpcoming = and(inTenure, inMonth, gte(meeting.endsAt, now), eq(meeting.status, "scheduled"));
+  const isPast = and(inTenure, inMonth, lt(meeting.endsAt, now));
   // "Today" is the IST calendar day, so a 7 AM meeting stays listed all day.
   const dayStart = startOfIstDay(now);
   const isToday = and(inTenure, gte(meeting.startsAt, dayStart), lt(meeting.startsAt, addDays(dayStart, 1)));
@@ -118,11 +126,20 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
         </p>
       ) : null}
       <Tabs defaultValue={tab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="past">Past</TabsTrigger>
-        </TabsList>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <TabsList>
+            <TabsTrigger value="today">Today</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="past">Past</TabsTrigger>
+          </TabsList>
+          {/* Narrowing to a month starts both lists again from page one. */}
+          <MonthFilter
+            value={month}
+            months={monthOptions(months)}
+            allLabel="All months"
+            href={(key) => (key ? `/admin/meetings?tab=${tab}&m=${key}` : `/admin/meetings?tab=${tab}`)}
+          />
+        </div>
         <TabsContent value="today">
           {today.length === 0 ? (
             <EmptyState title="No meeting today." />
@@ -142,7 +159,7 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
             total={upcomingTotal}
             pageSize={PAGE_SIZE}
             // Keeps the tab: without it, paging lands back on Today whenever there is a meeting today.
-            href={(p) => pageHref("/admin/meetings", { tab: "upcoming", pp: keep(pa.page) }, p)}
+            href={(p) => pageHref("/admin/meetings", { tab: "upcoming", m: month || undefined, pp: keep(pa.page) }, p)}
           />
           {canManage && cancelled.length ? (
             <div className="mt-6">
@@ -187,7 +204,7 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
             pageCount={pa.pageCount}
             total={pastTotal}
             pageSize={PAGE_SIZE}
-            href={(p) => pageHref("/admin/meetings", { tab: "past", page: keep(up.page) }, p, "pp")}
+            href={(p) => pageHref("/admin/meetings", { tab: "past", m: month || undefined, page: keep(up.page) }, p, "pp")}
           />
         </TabsContent>
       </Tabs>

@@ -27,7 +27,7 @@ Needs Node.js 22+.
 
 ```bash
 npm install
-cp .env.example .env.local      # then set BETTER_AUTH_SECRET and SETUP_TOKEN
+cp .env.example .env.local      # then set BETTER_AUTH_SECRET
 npm run db:local                # terminal 1: local Postgres (PGlite) on port 5433, keep it running
 npm run db:migrate              # terminal 2: create the tables
 npm run seed                    # optional: demo chapter (12 members, venue, meetings)
@@ -52,11 +52,7 @@ npm run dev                     # http://localhost:3000
   - The member signs in with the default and chooses a new password.
   - A Head Table member can't reset someone who has more access than they do. For example, a VP can't reset the President or the Secretary, because that would let them sign in as that person. Only the President or an admin can reset those.
 - **Guessing limits:** 8 wrong passwords for one login ID, or 30 from one network, in 15 minutes block further tries for 15 minutes.
-- **Emergency:** if no admin or President can sign in:
-  1. Set `SETUP_TOKEN` in the host's environment variables.
-  2. Open `/setup` and use **Admin recovery** to set a new password.
-  3. Remove the token afterwards.
-- **Without demo data:** open `/setup`, enter `SETUP_TOKEN` and create the first admin with their own password.
+- **Emergency:** there is no recovery page. If no admin or President can sign in, the password has to be reset in the database — any admin who can still sign in should do it from Admin → Members instead.
 - **Dev-only test tools:** on the Check in page you can paste a kiosk token instead of scanning it. They are compiled out of production builds, and the server still runs every check.
 
 ### Testing on a real phone
@@ -81,15 +77,15 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
    - No CORS setup is needed: uploads (`/api/uploads`) and reads (`/api/media`) both go through the app, which checks each upload is a real image.
 3. **Email (optional):** sign-in doesn't need email. Only if you want email copies of alerts and the Monday report, set `RESEND_API_KEY` and `EMAIL_FROM`.
 4. **The host:** point it at the repository and add the variables from [.env.example](.env.example).
-   - `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` are **required**: nothing else tells the app which origin it is served from.
+   - `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` are **required**: nothing else tells the app which origin it is served from. Production is <https://darkred-locust-154312.hostingersite.com> — set both to it, with no trailing slash, or sign-in is rejected as an untrusted origin.
    - Build command: `npm run build` — it applies any pending database migrations, then builds.
      - It passes `--webpack`, because Next's native SWC/Turbopack binaries need glibc 2.29+ and some shared hosts are older. The command is written this way, rather than as a separate script, because hosts like Hostinger only offer `npm run build`. For a quick local build without migrations, use `npm run build:local`.
      - The build needs `devDependencies` (TypeScript, Tailwind, the React Compiler plugin, drizzle-kit), so don't install with `--omit=dev`.
      - `DATABASE_URL` and `NEXT_PUBLIC_APP_URL` must be set at **build** time, not only at runtime.
    - Start command: `npm start`.
    - Weekly housekeeping: set `CRON_SECRET` and have the host's scheduler call the endpoint every Monday, e.g.
-     `curl -H "Authorization: Bearer $CRON_SECRET" https://YOUR-APP-DOMAIN/api/cron/monday-report`.
-5. **First admin:** with `SETUP_TOKEN` set, open `https://YOUR-APP-DOMAIN/setup` and create the admin with their own password. Afterwards, remove `SETUP_TOKEN`.
+     `curl -H "Authorization: Bearer $CRON_SECRET" https://darkred-locust-154312.hostingersite.com/api/cron/monday-report`.
+5. **First admin:** created in the database, not in the app — there is no setup page. On a fresh database, insert one member row with `is_admin = true` and a password hash, or run `npm run seed` against it and delete the demo members afterwards.
 6. **Optional:** `NOMINATIM_EMAIL`, a contact address for OpenStreetMap's address search.
 
 ## Chapter rollout checklist

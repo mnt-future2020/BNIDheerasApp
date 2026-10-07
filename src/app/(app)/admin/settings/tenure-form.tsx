@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { createTenure } from "@/actions/tenure";
+import { chooseTenure, createTenure } from "@/actions/tenure";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,11 +17,12 @@ const MONTHS = [
 ];
 
 /** A tenure runs in whole months, so it is picked as month + year at each end. */
-export function TenureForm({ tenures, today }: { tenures: Tenure[]; today: string }) {
+export function TenureForm({ tenures, today, selected }: { tenures: Tenure[]; today: string; selected: string }) {
   const router = useRouter();
   const [from, setFrom] = useState({ month: "", year: "" });
   const [to, setTo] = useState({ month: "", year: "" });
   const [pending, start] = useTransition();
+  const shown = tenures.find((t) => t.id === selected) ?? tenures[0];
   const thisYear = Number(today.slice(0, 4));
   const years = Array.from({ length: 7 }, (_, i) => String(thisYear - 1 + i));
   const ready = from.month && from.year && to.month && to.year;
@@ -83,21 +84,39 @@ export function TenureForm({ tenures, today }: { tenures: Tenure[]; today: strin
 
   return (
     <div className="space-y-3">
-      {tenures.length ? (
-        <div className="divide-y rounded-xl border bg-card">
-          {tenures.map((t) => (
-            <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
-              <span className="flex-1">
-                <span className="font-medium">{t.name}</span>
-                <span className="text-muted-foreground">
-                  {" "}
-                  · {t.startsOn} to {t.endsOn}
-                </span>
-              </span>
-              {/* Today decides which one is live — there is nothing to tick. */}
-              {t.startsOn <= today && today <= t.endsOn ? <Badge>Current</Badge> : null}
-            </div>
-          ))}
+      {/* The same dropdown as the one in the header, so picking one here also
+          changes the tenure the rest of the app is showing. */}
+      {shown ? (
+        <div className="space-y-1.5">
+          <Label>Tenure</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={shown.id}
+              disabled={pending}
+              onValueChange={(id) =>
+                start(async () => {
+                  await chooseTenure(id);
+                  router.refresh();
+                })
+              }
+            >
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {tenures.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Today decides which one is live — there is nothing to tick. */}
+            {shown.startsOn <= today && today <= shown.endsOn ? <Badge>Current</Badge> : null}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {shown.startsOn} to {shown.endsOn} · {tenures.length} tenure{tenures.length === 1 ? "" : "s"} in all
+          </p>
         </div>
       ) : null}
       <Card>

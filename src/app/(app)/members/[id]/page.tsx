@@ -1,4 +1,4 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import {
   CakeIcon,
   GlobeIcon,
@@ -19,10 +19,11 @@ import { notFound } from "next/navigation";
 import { CopyButton } from "@/components/copy-button";
 import { MemberAvatar } from "@/components/member-avatar";
 import { PageContainer } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { award, danceCard, member, memberLocation, memberProfile } from "@/db/schema";
+import { award, awardType, danceCard, member, memberLocation, memberProfile } from "@/db/schema";
 import { MONTH_NAMES } from "@/lib/celebrations";
 import { whatsappLink } from "@/lib/members";
 import { requireMember } from "@/lib/session";
@@ -40,11 +41,18 @@ export default async function MemberPage({ params }: PageProps<"/members/[id]">)
   const { id } = await params;
   const [m] = await db.select().from(member).where(and(eq(member.id, id), eq(member.status, "active"), eq(member.isChapterMember, true)));
   if (!m) notFound();
-  const [[profile], [loc], [card], [{ wins }]] = await Promise.all([
+  const [[profile], [loc], [card], wins] = await Promise.all([
     db.select().from(memberProfile).where(eq(memberProfile.memberId, id)),
     db.select().from(memberLocation).where(and(eq(memberLocation.memberId, id), eq(memberLocation.visible, true))),
     db.select({ updatedAt: danceCard.updatedAt }).from(danceCard).where(eq(danceCard.memberId, id)),
-    db.select({ wins: count() }).from(award).where(and(eq(award.memberId, id), eq(award.published, true))),
+    // Named, not just counted: "Best Presenter · 3" says what they won.
+    db
+      .select({ name: awardType.name, times: count() })
+      .from(award)
+      .innerJoin(awardType, eq(awardType.id, award.awardTypeId))
+      .where(and(eq(award.memberId, id), eq(award.published, true)))
+      .groupBy(awardType.name, awardType.sortOrder)
+      .orderBy(desc(count()), asc(awardType.sortOrder)),
   ]);
   const embed = youtubeEmbedUrl(profile?.videoUrl);
   const wa = whatsappLink(profile?.whatsapp ?? m.phone);
@@ -70,7 +78,7 @@ export default async function MemberPage({ params }: PageProps<"/members/[id]">)
       profile?.dateOfBirth ||
       profile?.anniversaryDate ||
       loc ||
-      wins > 0,
+      wins.length > 0,
   );
 
   return (
@@ -184,9 +192,17 @@ export default async function MemberPage({ params }: PageProps<"/members/[id]">)
                   ) : null}
                 </div>
               ) : null}
-              {wins > 0 ? (
-                <div className="flex items-center gap-2">
-                  <TrophyIcon className="size-4 text-primary" /> {wins} weekly recognition{wins > 1 ? "s" : ""}
+              {wins.length ? (
+                <div className="flex items-start gap-2">
+                  <TrophyIcon className="mt-0.5 size-4 shrink-0 text-primary" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {wins.map((w) => (
+                      <Badge key={w.name} variant="secondary" className="font-normal">
+                        {w.name}
+                        <span className="ml-1 font-semibold tabular-nums">× {w.times}</span>
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </CardContent>
