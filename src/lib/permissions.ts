@@ -167,12 +167,10 @@ const ROLE_CAPS: Record<Role, readonly Capability[]> = {
   president: CAPABILITIES,
   vice_president: CAPABILITIES,
   secretary_treasurer: CAPABILITIES,
-  // Meetings and venues, whole. Not PALMS (attendance.manual), not the summary
-  // (palms.view) and not the venue screen's QR (kiosk.run): entering who came
-  // and reading it back stay with the Attendance Coordinator.
-  // Schedules and edits meetings, and records who visited. Not cancelling or
-  // deleting one, not PALMS, not the summary, and not the venue screen's QR.
-  lvh: ["meetings.manage", "visitors.manage"],
+  // Visitors, and nothing else. They open a meeting to record who came as a
+  // guest; the meeting itself is not theirs to create, edit, cancel or delete,
+  // and neither is PALMS, the summary or the venue screen's QR.
+  lvh: ["visitors.manage"],
   // PALMS and the summary that reads it back. The meeting itself is somebody
   // else's: no creating, editing, cancelling or deleting, and no visitors.
   attendance_coordinator: ["attendance.manual", "palms.view"],

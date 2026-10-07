@@ -62,8 +62,8 @@ describe("separation of duties", () => {
       "event_coordinator",
     ]);
     expect(capabilitiesFor(["lvh_captain" as Role], false).size).toBe(0);
-    // One schedules the meetings and logs visitors; the other works the sheet.
-    expect(roleCapabilities("lvh")).toEqual(["meetings.manage", "visitors.manage"]);
+    // One logs the visitors, the other works the sheet; neither owns the meeting.
+    expect(roleCapabilities("lvh")).toEqual(["visitors.manage"]);
     expect(roleCapabilities("attendance_coordinator")).toEqual(["attendance.manual", "palms.view"]);
     expect(roleCapabilities("event_coordinator")).toEqual(["calendar.manage"]);
   });
@@ -72,10 +72,10 @@ describe("separation of duties", () => {
     const lvh = capabilitiesFor(["lvh"], false);
     const coordinator = capabilitiesFor(["attendance_coordinator"], false);
 
-    // LVH schedules meetings and records visitors. Not PALMS, not the summary,
-    // not the venue screen's QR, and not calling a meeting off.
-    expect(lvh.has("meetings.manage")).toBe(true);
+    // LVH records visitors. Not the meeting itself, not PALMS, not the
+    // summary, not the venue screen's QR.
     expect(lvh.has("visitors.manage")).toBe(true);
+    expect(lvh.has("meetings.manage")).toBe(false); // Create and edit
     expect(lvh.has("attendance.manual")).toBe(false); // PALMS
     expect(lvh.has("palms.view") || lvh.has("meeting.finalize")).toBe(false); // Summary
     expect(lvh.has("kiosk.run")).toBe(false); // QR link
@@ -98,10 +98,10 @@ describe("separation of duties", () => {
     expect(permissionGrid(capabilitiesFor([], true))).toHaveLength(PERMISSION_MODULES.length);
     expect(permissionGrid(capabilitiesFor([], false))).toEqual([]);
 
-    // LVH: meetings without the delete column, and visitors.
+    // LVH: the Visitors row alone.
     const lvh = permissionGrid(capabilitiesFor(["lvh"], false));
-    expect(lvh.map((r) => r.module)).toEqual(["Meetings & venues", "Visitors"]);
-    expect(lvh[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "no" });
+    expect(lvh.map((r) => r.module)).toEqual(["Visitors"]);
+    expect(lvh[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "none" });
 
     // The Attendance Coordinator gets PALMS, and no meeting row at all.
     const coordinator = permissionGrid(capabilitiesFor(["attendance_coordinator"], false));
