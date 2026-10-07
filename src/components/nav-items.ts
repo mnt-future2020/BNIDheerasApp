@@ -1,4 +1,4 @@
-import type { Capability } from "@/lib/permissions";
+import { CAPABILITIES, type Capability } from "@/lib/permissions";
 
 export type NavItem = {
   href: string;
@@ -12,20 +12,12 @@ export type NavItem = {
   chapterOnly?: boolean;
 };
 
-const ADMIN_CAPS: Capability[] = [
-  "members.manage",
-  "roles.manage",
-  "devices.approve",
-  "meetings.manage",
-  "kiosk.run",
-  "attendance.manual",
-  "awards.manage",
-  "calendar.manage",
-  "feedback.manage",
-  "settings.manage",
-  "audit.view",
-  "palms.view",
-];
+/**
+ * Every capability leads somewhere under Admin, so holding any one of them is
+ * what opens the link. Listed by hand this went stale twice — a role given a
+ * new capability could reach its page but had no way in from the navigation.
+ */
+const ADMIN_CAPS: Capability[] = [...CAPABILITIES];
 
 /**
  * The phone's bottom bar: five tabs at most, so each one stays wide enough to
