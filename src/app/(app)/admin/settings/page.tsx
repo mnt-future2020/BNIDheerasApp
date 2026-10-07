@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { PageContainer, PageHeader } from "@/components/page-header";
 import { getDefaultPassword } from "@/lib/passwords";
 import { requireCapPage } from "@/lib/session";
+import { getChapterAdmin } from "@/lib/settings";
 import { currentTenure, listTenures } from "@/lib/tenure";
 import { formatDate, toIstDateInput } from "@/lib/time";
+import { ChapterAdminForm } from "./chapter-admin-form";
 import { DefaultPasswordForm } from "./default-password-form";
 import { TenureForm } from "./tenure-form";
 
@@ -16,17 +18,20 @@ export default async function SettingsPage() {
   const me = await requireCapPage("settings.manage");
   const now = new Date();
   const today = toIstDateInput(now);
-  const [defaultPassword, tenures, current] = await Promise.all([
+  const [defaultPassword, tenures, current, chapterAdmin] = await Promise.all([
     getDefaultPassword(),
     listTenures(),
     currentTenure(now),
+    getChapterAdmin(),
   ]);
   return (
     <PageContainer>
       <PageHeader title="Settings" back={{ href: "/admin", label: "Admin" }} />
+      <h2 className="mb-2 font-semibold">Chapter</h2>
+      <ChapterAdminForm initial={chapterAdmin} />
       {me.caps.has("roles.manage") ? (
         <>
-          <h2 className="mb-1 font-semibold">Tenures</h2>
+          <h2 className="mt-6 mb-1 font-semibold">Tenures</h2>
           <p className="mb-2 text-sm text-muted-foreground">
             A tenure runs in whole months. Meetings, PALMS, recognitions and events are shown for the tenure picked at
             the top of the page; the member list and everyone&apos;s permissions are not affected.

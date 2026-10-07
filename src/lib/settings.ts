@@ -36,3 +36,22 @@ async function readSetting<T>(key: string, schema: z.ZodType<T>, fallback: T): P
 export function getAttendanceSettings(): Promise<AttendanceSettings> {
   return readSetting("attendance", attendanceSettingsSchema, DEFAULT_ATTENDANCE_SETTINGS);
 }
+
+export const CHAPTER_ADMIN_KEY = "chapterAdmin";
+
+/**
+ * The chapter's Admin: a name the Head Table types once and leaves alone. It
+ * belongs to the chapter, not to a tenure, so starting a new tenure carries it
+ * over untouched — in practice it only changes every couple of years.
+ */
+export function getChapterAdmin(): Promise<string> {
+  return readSetting(CHAPTER_ADMIN_KEY, z.string(), "");
+}
+
+export async function setChapterAdmin(value: string, actorId: string): Promise<void> {
+  const name = value.trim();
+  await db
+    .insert(setting)
+    .values({ key: CHAPTER_ADMIN_KEY, value: name, updatedById: actorId })
+    .onConflictDoUpdate({ target: setting.key, set: { value: name, updatedById: actorId, updatedAt: new Date() } });
+}

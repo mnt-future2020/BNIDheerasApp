@@ -20,6 +20,8 @@ export function parseLoginId(raw: string): { email: string } | { phone: string }
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
+/** Here, not in lib/settings, because the settings form is a client component. */
+export const CHAPTER_ADMIN_MAX_LENGTH = 120;
 
 /** Accepts YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY (as BNI exports often use); anything else becomes null. */
 export function parseLooseDate(value: string | undefined): string | null {
