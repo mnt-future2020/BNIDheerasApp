@@ -35,11 +35,15 @@ export function RolesAdmin({
   const [role, setRole] = useState("");
   const nameOf = (id: string) => members.find((m) => m.id === id)?.fullName ?? "Former member";
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, ok?: string) =>
+  const assign = () =>
     start(async () => {
-      const res = await fn();
-      if (!res.ok) toast.error((res as { error: string }).error);
-      else if (ok) toast.success(ok);
+      const res = await assignRole(selectedTermId!, memberId, role);
+      if (!res.ok) return void toast.error(res.error);
+      toast.success("Role assigned.");
+      // Emptied, or the next assignment starts on the last one's answers and
+      // the boxes disagree with the list that just changed underneath them.
+      setMemberId("");
+      setRole("");
     });
 
   return (
@@ -78,7 +82,7 @@ export function RolesAdmin({
             </Select>
             <Button
               disabled={pending || !memberId || !role}
-              onClick={() => run(() => assignRole(selectedTermId, memberId, role), "Role assigned.")}
+              onClick={assign}
             >
               Assign
             </Button>

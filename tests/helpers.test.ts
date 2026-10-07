@@ -62,10 +62,33 @@ describe("separation of duties", () => {
       "event_coordinator",
     ]);
     expect(capabilitiesFor(["lvh_captain" as Role], false).size).toBe(0);
-    // One job each: the desk, attendance, the calendar.
-    expect(roleCapabilities("lvh")).toEqual(["kiosk.run"]);
-    expect(roleCapabilities("attendance_coordinator")).toEqual(["attendance.manual", "palms.view"]);
+    // Both run the meetings; what they may do inside one is what differs.
+    expect(roleCapabilities("lvh")).toEqual(["meetings.manage"]);
+    expect(roleCapabilities("attendance_coordinator")).toEqual([
+      "attendance.manual",
+      "palms.view",
+      "meetings.manage",
+    ]);
     expect(roleCapabilities("event_coordinator")).toEqual(["calendar.manage"]);
+  });
+
+  it("keeps PALMS, the summary, the QR and visitors with the right role", () => {
+    const lvh = capabilitiesFor(["lvh"], false);
+    const coordinator = capabilitiesFor(["attendance_coordinator"], false);
+
+    // LVH runs the meetings but neither enters attendance nor reads it back,
+    // and the venue screen's QR is not theirs.
+    expect(lvh.has("meetings.manage")).toBe(true);
+    expect(lvh.has("attendance.manual")).toBe(false); // PALMS
+    expect(lvh.has("palms.view") || lvh.has("meeting.finalize")).toBe(false); // Summary
+    expect(lvh.has("kiosk.run")).toBe(false); // QR link
+
+    // The Attendance Coordinator runs the meetings and PALMS. Visitors needs
+    // kiosk.run or meeting.finalize, so it stays off this role.
+    expect(coordinator.has("meetings.manage")).toBe(true);
+    expect(coordinator.has("attendance.manual")).toBe(true);
+    expect(coordinator.has("palms.view")).toBe(true);
+    expect(coordinator.has("kiosk.run") || coordinator.has("meeting.finalize")).toBe(false);
   });
 
   it("shows every capability in the permissions grid, module by module", () => {
@@ -76,14 +99,15 @@ describe("separation of duties", () => {
     expect(permissionGrid(capabilitiesFor([], true))).toHaveLength(PERMISSION_MODULES.length);
     expect(permissionGrid(capabilitiesFor([], false))).toEqual([]);
 
-    // One module each, and everything that module can do.
+    // LVH: the whole Meetings module, and nothing else.
     const lvh = permissionGrid(capabilitiesFor(["lvh"], false));
-    expect(lvh.map((r) => r.module)).toEqual(["Venue screen & visitors"]);
-    expect(lvh[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "none" });
+    expect(lvh.map((r) => r.module)).toEqual(["Meetings & venues"]);
+    expect(lvh[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "yes" });
 
+    // The Attendance Coordinator adds PALMS on top; visitors is not a row they get.
     const coordinator = permissionGrid(capabilitiesFor(["attendance_coordinator"], false));
-    expect(coordinator.map((r) => r.module)).toEqual(["PALMS"]);
-    expect(coordinator[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "none" });
+    expect(coordinator.map((r) => r.module)).toEqual(["Meetings & venues", "PALMS"]);
+    expect(coordinator[1].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "none" });
 
     const events = permissionGrid(capabilitiesFor(["event_coordinator"], false));
     expect(events.map((r) => r.module)).toEqual(["Events calendar"]);

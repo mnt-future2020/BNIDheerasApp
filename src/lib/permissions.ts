@@ -157,10 +157,14 @@ const ROLE_CAPS: Record<Role, readonly Capability[]> = {
   president: CAPABILITIES,
   vice_president: CAPABILITIES,
   secretary_treasurer: CAPABILITIES,
-  // The desk and the venue screen's QR. Marking anyone in by hand is the
-  // Attendance Coordinator's, so the two jobs stay in different hands.
-  lvh: ["kiosk.run"],
-  attendance_coordinator: ["attendance.manual", "palms.view"],
+  // Meetings and venues, whole. Not PALMS (attendance.manual), not the summary
+  // (palms.view) and not the venue screen's QR (kiosk.run): entering who came
+  // and reading it back stay with the Attendance Coordinator.
+  lvh: ["meetings.manage"],
+  // Meetings and venues too, plus entering PALMS and reading the summary back.
+  // No kiosk.run or meeting.finalize, which is what puts Visitors on a meeting,
+  // so counting visitors stays off this role.
+  attendance_coordinator: ["meetings.manage", "attendance.manual", "palms.view"],
   event_coordinator: ["calendar.manage"],
 };
 
