@@ -59,7 +59,7 @@ export default async function CalendarAdminPage({ searchParams }: PageProps<"/ad
         value={month}
         months={monthOptions(months)}
         allLabel="Upcoming"
-        href={(key) => (key ? `/admin/calendar?m=${key}` : "/admin/calendar")}
+        path="/admin/calendar"
       />
       <CalendarAdmin
         kinds={kinds.map((k) => ({ key: k, label: kindLabel(k) }))}

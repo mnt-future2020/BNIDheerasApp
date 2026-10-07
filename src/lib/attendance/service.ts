@@ -8,13 +8,12 @@ import {
   device,
   leaveRequest,
   meeting,
-  member,
   substitute,
 } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { isUniqueViolation } from "@/lib/db-errors";
 import { parsePublicJwk, verifyDeviceSignature } from "./device-crypto";
-import { PASS_MAX_AGE_MS, parsePass, signedPayload } from "./payloads";
+import { signedPayload } from "./payloads";
 import { parseQrToken, verifyQrToken } from "./qr-token";
 import { expectedMembers, getMeetingWithVenue, type MeetingWithVenue } from "./queries";
 import { checkinClosingTime, checkinWindow, statusForCheckin } from "./rules";
@@ -246,74 +245,6 @@ export async function selfCheckin(input: {
  * Fallback 1: an LVH member scans the member's "check-in pass" (a QR signed by
  * the member's approved phone).
  */
-export async function passCheckin(input: {
-  lvhId: string;
-  meetingId: string;
-  pass: string;
-  meta: RequestMeta;
-}): Promise<CheckinResult> {
-  const now = new Date();
-  const log: AttemptLog = { meetingId: input.meetingId, via: "lvh_scan", meta: input.meta };
-  const reject = async (reason: string, memberName?: string) => {
-    await logAttempt(log, "rejected", reason);
-    return { ok: false as const, reason, memberName };
-  };
-
-  const pass = parsePass(input.pass);
-  if (!pass) return reject("pass_invalid");
-  log.memberId = pass.memberId;
-  log.deviceId = pass.deviceId;
-  const age = now.getTime() - pass.ts;
-  if (age > PASS_MAX_AGE_MS || age < -30_000) return reject("pass_expired");
-
-  const [who] = await db
-    .select({ id: member.id, fullName: member.fullName, status: member.status })
-    .from(member)
-    .where(eq(member.id, pass.memberId));
-  if (!who) return reject("pass_invalid");
-  if (who.status !== "active") return reject("inactive", who.fullName);
-
-  const [dev] = await db.select().from(device).where(eq(device.id, pass.deviceId));
-  if (!dev || dev.memberId !== who.id) return reject("pass_invalid", who.fullName);
-  if (dev.status !== "approved") {
-    return reject(dev.status === "pending" ? "device_pending" : "device_revoked", who.fullName);
-  }
-  const jwk = parsePublicJwk(dev.publicKeyJwk);
-  const sigOk =
-    jwk && (await verifyDeviceSignature(jwk, signedPayload.pass(who.id, dev.id, pass.ts), pass.signature));
-  if (!sigOk) return reject("pass_invalid", who.fullName);
-
-  const m = await getMeetingWithVenue(input.meetingId);
-  const gate = meetingGate(m, now);
-  if (gate || !m) return reject(gate ?? "meeting_not_found", who.fullName);
-
-  const result = await writeCheckin({
-    m,
-    memberId: who.id,
-    memberName: who.fullName,
-    method: "lvh_scan",
-    deviceId: dev.id,
-    flags: [],
-    setById: input.lvhId,
-    now,
-  });
-  await logAttempt(
-    log,
-    result.ok ? "ok" : "rejected",
-    result.ok ? (result.already ? "already" : "checked_in") : result.reason,
-  );
-  if (result.ok && !result.already) {
-    await audit({
-      actorId: input.lvhId,
-      action: "attendance.pass_scan",
-      entity: "attendance",
-      entityId: `${m.id}:${who.id}`,
-      after: { status: result.status },
-    });
-  }
-  return result;
-}
-
 export class AttendanceError extends Error {}
 
 async function requireOpenMeeting(meetingId: string) {

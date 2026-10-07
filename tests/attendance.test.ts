@@ -1,7 +1,7 @@
 import { webcrypto } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { jwkThumbprint, parsePublicJwk, verifyDeviceSignature } from "@/lib/attendance/device-crypto";
-import { buildPass, parsePass, signedPayload } from "@/lib/attendance/payloads";
+import { signedPayload } from "@/lib/attendance/payloads";
 import {
   newMeetingSecret,
   parseQrToken,
@@ -18,6 +18,7 @@ import {
   lateCutoff,
   planDeadline,
   statusForCheckin,
+  undoDeadline,
 } from "@/lib/attendance/rules";
 
 const MEETING = "b460bf1a-4c36-4089-8561-1da595e2f14a";
@@ -83,17 +84,21 @@ describe("late rule (exact start time unless grace is set)", () => {
     expect(checkinWindow(new Date(ends.getTime() + 1), opens, ends)).toBe("closed");
   });
 
-  it("uses the meeting's own deadline for check-in and for reasons", () => {
+  it("uses the meeting's own deadline for check-in", () => {
     const endsAt = new Date(start.getTime() + 90 * 60_000);
     const checkinClosesAt = new Date(start.getTime() + 15 * 60_000);
-    // Set: one deadline for both.
-    const m = { startsAt: start, endsAt, checkinClosesAt };
-    expect(checkinClosingTime(m)).toBe(checkinClosesAt);
-    expect(planDeadline(m)).toBe(checkinClosesAt);
-    // Unset: the old rule each way — check-in to the end, reasons to the start.
-    const open = { startsAt: start, endsAt, checkinClosesAt: null };
-    expect(checkinClosingTime(open)).toBe(endsAt);
-    expect(planDeadline(open)).toBe(start);
+    expect(checkinClosingTime({ endsAt, checkinClosesAt })).toBe(checkinClosesAt);
+    // Unset: check-in runs to the end of the meeting.
+    expect(checkinClosingTime({ endsAt, checkinClosesAt: null })).toBe(endsAt);
+  });
+
+  it("closes reasons when check-in opens, and undo when the meeting starts", () => {
+    const checkinOpensAt = new Date(start.getTime() - 60 * 60_000);
+    // Saying "can't attend" has to be in before the doors open...
+    expect(planDeadline({ checkinOpensAt })).toBe(checkinOpensAt);
+    // ...but it can be taken back right up to the meeting itself.
+    expect(undoDeadline({ startsAt: start })).toBe(start);
+    expect(undoDeadline({ startsAt: start }).getTime()).toBeGreaterThan(planDeadline({ checkinOpensAt }).getTime());
   });
 });
 
@@ -216,15 +221,5 @@ describe("device key signatures (T1, T2, T10)", () => {
     expect(parsePublicJwk({ kty: "EC", crv: "P-256", x, y: x, d: x })).toBeNull();
     expect(parsePublicJwk({ kty: "EC", crv: "P-384", x, y: x })).toBeNull();
     expect(parsePublicJwk({ kty: "RSA", n: "abc", e: "AQAB" })).toBeNull();
-  });
-});
-
-describe("member pass (LVH fallback)", () => {
-  it("round-trips through the QR text", () => {
-    const sig = "s".repeat(86);
-    const deviceId = "0f8fad5b-d9cb-469f-a165-70867728950e";
-    const text = buildPass(MEETING, deviceId, 1791200000000, sig);
-    expect(parsePass(text)).toEqual({ memberId: MEETING, deviceId, ts: 1791200000000, signature: sig });
-    expect(parsePass(text.replace("BNIDP1", "BNIDP2"))).toBeNull();
   });
 });

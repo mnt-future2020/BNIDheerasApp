@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, ne } from "drizzle-orm";
 import { CakeIcon, CalendarIcon, ClockIcon, MapPinIcon, ScanLineIcon, TrophyIcon } from "lucide-react";
 import Link from "next/link";
 import { CelebrationRow } from "@/components/celebration-row";
@@ -10,9 +10,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { award, awardType, calendarEvent, leaveRequest, meeting, member } from "@/db/schema";
+import { award, awardType, calendarEvent, meeting, member } from "@/db/schema";
 import { getCurrentOrNextMeeting, memberMeetingState } from "@/lib/attendance/queries";
-import { checkinClosingTime, checkinWindow, planDeadline } from "@/lib/attendance/rules";
+import { checkinClosingTime, checkinWindow, planDeadline, undoDeadline } from "@/lib/attendance/rules";
 import { type Celebration, getCelebrations, isToday, MONTH_NAMES, nextMonth, today } from "@/lib/celebrations";
 import { getMemberDevices } from "@/lib/devices";
 import { requireMember } from "@/lib/session";
@@ -20,11 +20,10 @@ import { accountName } from "@/lib/settings";
 import { publicUrl } from "@/lib/storage";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDate, formatDateTime, formatShortDate, formatTime } from "@/lib/time";
-import { CancelPlanButton, PlanDialog } from "./plan-dialog";
+import { CancelPlanButton, PlanDialog, ViewPlanButton } from "./plan-dialog";
 
-export default async function HomePage({ searchParams }: PageProps<"/">) {
+export default async function HomePage() {
   const me = await requireMember();
-  const { denied } = await searchParams;
   const [devices, next] = await Promise.all([getMemberDevices(me.id), getCurrentOrNextMeeting()]);
   const state = next ? await memberMeetingState(me.id, next.id) : null;
   // The cards that list what happened follow the tenure picked in the header,
@@ -33,17 +32,19 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const tenure = await selectedTenure();
   const range = tenure ? tenureRange(tenure) : null;
   const winners = await latestWinners(range);
+  // Only one meeting belongs on the home page — the next one, in its own card
+  // above. A calendar entry typed as a meeting would read as a second one, so
+  // Coming up carries everything else: presentations, trainings, socials.
   const upcoming = await db
     .select()
     .from(calendarEvent)
     .where(
-      range
-        ? and(
-            gte(calendarEvent.endsAt, new Date()),
-            gte(calendarEvent.startsAt, range.from),
-            lt(calendarEvent.startsAt, range.to),
-          )
-        : gte(calendarEvent.endsAt, new Date()),
+      and(
+        gte(calendarEvent.endsAt, new Date()),
+        ne(calendarEvent.kind, "meeting"),
+        range ? gte(calendarEvent.startsAt, range.from) : undefined,
+        range ? lt(calendarEvent.startsAt, range.to) : undefined,
+      ),
     )
     .orderBy(asc(calendarEvent.startsAt))
     .limit(3);
@@ -51,44 +52,36 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const celebrations = await getCelebrations();
   const now0 = today();
 
-  // No device-approval count here: pending phones are handled on the members desk.
-  const pendingLeave = me.caps.has("leave.approve")
-    ? (await db.select({ n: count() }).from(leaveRequest).where(eq(leaveRequest.status, "pending")))[0].n
-    : 0;
-
   const now = new Date();
   const windowState = next ? checkinWindow(now, next.checkinOpensAt, checkinClosingTime(next)) : null;
-  // Until this moment a member can still cancel a plan or give a reason; the
-  // server enforces the same deadline, so the buttons must agree with it.
+  // Two deadlines, both enforced on the server as well, so the buttons can
+  // never offer something the action will refuse: a reason has to be in before
+  // check-in opens, and it can be taken back until the meeting starts.
   const canPlan = next ? now < planDeadline(next) : false;
+  const canUndo = next ? now < undoDeadline(next) : false;
+  // What they already said, if anything — shown instead of asking again.
+  const plan = state?.substitute
+    ? { kind: "substitute" as const, detail: `${state.substitute.name} · ${state.substitute.phone}` }
+    : state?.leave
+      ? { kind: state.leave.kind, detail: state.leave.reason ?? "" }
+      : null;
   // The admin-only account greets by the Chapter Admin's name from Settings,
   // in full: it isn't a person's record, so "Hello, Chapter" reads oddly.
   const firstName = me.isChapterMember ? me.fullName.split(" ")[0] : await accountName(me);
 
   return (
     <PageContainer>
-      {denied ? (
-        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">You don&apos;t have access to that page.</p>
-      ) : null}
-      <h1 className="mb-4 text-2xl font-bold">Hello, {firstName}</h1>
+      {/* An approved phone shrinks to a badge in the corner; anything else
+          wants a button or a code, so it drops to its own full-width card. */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h1 className="text-2xl font-bold">Hello, {firstName}</h1>
+        {me.isChapterMember ? <DeviceCard compact memberId={me.id} devices={devices} /> : null}
+      </div>
 
       <div className="space-y-4">
         {/* Right under the greeting; shows only where the app can be installed. */}
         <InstallAppCard />
-        {pendingLeave > 0 ? (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardContent className="flex flex-wrap gap-2 py-3 text-sm">
-              <span className="font-medium">Waiting for you:</span>
-              <Link className="text-primary underline" href="/admin/leave">
-                {pendingLeave} medical leave request{pendingLeave > 1 ? "s" : ""}
-              </Link>
-            </CardContent>
-          </Card>
-        ) : null}
-
         {celebrations ? <CelebrationsCard all={celebrations} now={now0} /> : null}
-
-        {me.isChapterMember ? <DeviceCard memberId={me.id} devices={devices} /> : null}
 
         {me.isChapterMember ? (
           <Card>
@@ -127,7 +120,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                         Substitute: <b>{state.substitute.name}</b>
                         {state.substitute.arrivedAt ? " · arrived" : ""}
                       </span>
-                      {canPlan ? <CancelPlanButton meetingId={next.id} /> : null}
+                      {canUndo ? <CancelPlanButton meetingId={next.id} /> : null}
                     </div>
                   ) : state?.leave ? (
                     <div className="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2 text-sm">
@@ -135,24 +128,33 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                         {state.leave.kind === "medical" ? "Medical leave" : "Informed absence"} ·{" "}
                         <b>{state.leave.status}</b>
                       </span>
-                      {canPlan ? <CancelPlanButton meetingId={next.id} /> : null}
+                      {canUndo ? <CancelPlanButton meetingId={next.id} /> : null}
                     </div>
                   ) : null}
 
-                  <div className="flex flex-wrap gap-2">
-                    {windowState === "open" && !state?.attendance ? (
-                      <Button asChild size="lg" className="h-12 flex-1 text-base">
-                        <Link href="/scan">
-                          <ScanLineIcon /> Scan to check in
-                        </Link>
-                      </Button>
-                    ) : windowState === "not_open_yet" ? (
-                      <p className="flex-1 text-sm text-muted-foreground">
-                        Check-in opens at {formatDateTime(next.checkinOpensAt)}.
-                      </p>
-                    ) : null}
-                    {canPlan && !state?.attendance ? <PlanDialog meetingId={next.id} /> : null}
-                  </div>
+                  {/* Three states, and only one of them at a time. Checked in:
+                      nothing left to do. Said they can't come: no check-in, or
+                      the app would be inviting them to contradict themselves —
+                      Undo above is the way back, while it is still offered.
+                      Neither: check in, or say you can't. */}
+                  {state?.attendance ? null : plan ? (
+                    <ViewPlanButton kind={plan.kind} detail={plan.detail} />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {windowState === "open" ? (
+                        <Button asChild size="lg" className="h-12 flex-1 text-base">
+                          <Link href="/scan">
+                            <ScanLineIcon /> Scan to check in
+                          </Link>
+                        </Button>
+                      ) : windowState === "not_open_yet" ? (
+                        <p className="flex-1 text-sm text-muted-foreground">
+                          Check-in opens at {formatDateTime(next.checkinOpensAt)}.
+                        </p>
+                      ) : null}
+                      {canPlan ? <PlanDialog meetingId={next.id} /> : null}
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">No meeting scheduled yet.</p>
@@ -239,13 +241,10 @@ function CelebrationsCard({ all, now }: { all: Celebration[]; now: ReturnType<ty
   const nextOnes = all.filter((c) => c.month === coming);
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <CakeIcon className="size-4 text-primary" /> Celebrations
         </CardTitle>
-        <Link href="/celebrations" className="text-sm text-primary underline">
-          See all
-        </Link>
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
@@ -258,9 +257,9 @@ function CelebrationsCard({ all, now }: { all: Celebration[]; now: ReturnType<ty
             </p>
           )}
           {thisMonth.length > shownThisMonth.length ? (
-            <Link href="/celebrations" className="mt-1 block text-sm text-primary underline">
-              +{thisMonth.length - shownThisMonth.length} more this month
-            </Link>
+            <p className="mt-1 text-sm text-muted-foreground">
+              +{thisMonth.length - shownThisMonth.length} earlier this month
+            </p>
           ) : null}
         </div>
         <div>
@@ -271,9 +270,7 @@ function CelebrationsCard({ all, now }: { all: Celebration[]; now: ReturnType<ty
             <p className="text-sm text-muted-foreground">Nothing yet.</p>
           )}
           {nextOnes.length > CARD_LIMIT ? (
-            <Link href="/celebrations" className="mt-1 block text-sm text-primary underline">
-              +{nextOnes.length - CARD_LIMIT} more
-            </Link>
+            <p className="mt-1 text-sm text-muted-foreground">+{nextOnes.length - CARD_LIMIT} more</p>
           ) : null}
         </div>
       </CardContent>

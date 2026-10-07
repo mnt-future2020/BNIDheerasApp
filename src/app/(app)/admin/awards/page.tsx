@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { award, meeting } from "@/db/schema";
 import { ensureDefaults } from "@/lib/defaults";
-import { monthOf, monthOptions } from "@/lib/months";
+import { monthOf, monthOptions, tenureMonthKeys } from "@/lib/months";
 import { requireCapPage } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { daysFromNow, formatDate, formatTime } from "@/lib/time";
@@ -47,8 +47,11 @@ export default async function AwardsAdminPage({ searchParams }: PageProps<"/admi
   const stateOf = new Map(saved.map((s) => [s.meetingId, s]));
 
   const { month: monthParam } = await searchParams;
-  const months = [...new Set(meetings.map((m) => monthOf(m.startsAt)))];
-  const month = typeof monthParam === "string" && months.includes(monthParam) ? monthParam : (months[0] ?? "");
+  // Every month of the tenure, the same six Events offers, in the same order.
+  const thisMonth = monthOf(new Date());
+  const months = tenure ? tenureMonthKeys(tenure) : [...new Set(meetings.map((m) => monthOf(m.startsAt)))];
+  const fallback = months.includes(thisMonth) ? thisMonth : (months[0] ?? "");
+  const month = typeof monthParam === "string" && months.includes(monthParam) ? monthParam : fallback;
   const shown = meetings.filter((m) => monthOf(m.startsAt) === month);
 
   return (
@@ -69,34 +72,39 @@ export default async function AwardsAdminPage({ searchParams }: PageProps<"/admi
         <EmptyState title="No meetings yet.">Create a meeting first.</EmptyState>
       ) : (
         <div className="space-y-3">
-          <MonthFilter value={month} months={monthOptions(months)} href={(key) => `/admin/awards?month=${key}`} />
-          <div className="divide-y rounded-xl border bg-card">
-            {shown.map((m) => {
-              const s = stateOf.get(m.id);
-              return (
-                <Link
-                  key={m.id}
-                  href={`/admin/awards/${m.id}`}
-                  className="flex items-center gap-3 px-4 py-3 first:rounded-t-xl last:rounded-b-xl hover:bg-muted/50"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{formatDate(m.startsAt)}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatTime(m.startsAt)} · {m.title}
+          <MonthFilter value={month} months={monthOptions(months)} path="/admin/awards" param="month" />
+          {/* The dropdown offers the whole tenure now, so a month can be empty. */}
+          {shown.length === 0 ? (
+            <EmptyState title="No meetings that month." />
+          ) : (
+            <div className="divide-y rounded-xl border bg-card">
+              {shown.map((m) => {
+                const s = stateOf.get(m.id);
+                return (
+                  <Link
+                    key={m.id}
+                    href={`/admin/awards/${m.id}`}
+                    className="flex items-center gap-3 px-4 py-3 first:rounded-t-xl last:rounded-b-xl hover:bg-muted/50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{formatDate(m.startsAt)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatTime(m.startsAt)} · {m.title}
+                      </div>
                     </div>
-                  </div>
-                  {!s ? (
-                    <Badge variant="outline">Not picked</Badge>
-                  ) : s.published ? (
-                    <Badge>Published</Badge>
-                  ) : (
-                    <Badge variant="secondary">Draft · {s.n}</Badge>
-                  )}
-                  <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              );
-            })}
-          </div>
+                    {!s ? (
+                      <Badge variant="outline">Not picked</Badge>
+                    ) : s.published ? (
+                      <Badge>Published</Badge>
+                    ) : (
+                      <Badge variant="secondary">Draft · {s.n}</Badge>
+                    )}
+                    <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </PageContainer>

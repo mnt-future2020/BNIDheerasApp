@@ -53,7 +53,6 @@ npm run dev                     # http://localhost:3000
   - A Head Table member can't reset someone who has more access than they do. For example, a VP can't reset the President or the Secretary, because that would let them sign in as that person. Only the President or an admin can reset those.
 - **Guessing limits:** 8 wrong passwords for one login ID, or 30 from one network, in 15 minutes block further tries for 15 minutes.
 - **Emergency:** there is no recovery page. If no admin or President can sign in, the password has to be reset in the database — any admin who can still sign in should do it from Admin → Members instead.
-- **Dev-only test tools:** on the Check in page you can paste a kiosk token instead of scanning it. They are compiled out of production builds, and the server still runs every check.
 
 ### Testing on a real phone
 

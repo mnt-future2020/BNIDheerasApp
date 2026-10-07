@@ -15,9 +15,11 @@ export default async function KioskHome() {
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-10">
         <h1 className="text-2xl font-bold">Set up this venue screen</h1>
         <p className="mt-2 mb-6 text-sm text-muted-foreground">
-          On an LVH team phone, open <b>LVH desk → Pair a venue screen</b> and enter the 6-digit code here. This screen
-          will then only show the check-in QR.
+          On an LVH team phone, open the meeting and tap <b>Copy QR link</b>, then open that link on this screen. It
+          pairs itself and then only shows the check-in QR. The link is good for 10 minutes, once.
         </p>
+        {/* The 6 digits are the `pair=` on the end of that link, for a screen
+            that can't be handed a URL — read them off and type them here. */}
         <PairForm />
       </main>
     );

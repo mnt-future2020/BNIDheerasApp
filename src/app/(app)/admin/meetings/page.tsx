@@ -20,7 +20,7 @@ import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { addDays, formatDate, formatDateTime, formatTime, startOfIstDay } from "@/lib/time";
 import { CancelMeetingButton } from "./[id]/cancel-button";
 import type { MeetingFormValues } from "./meeting-form";
-import { NewMeetingButtons } from "./new-meeting-buttons";
+import { NewMeetingButton } from "./new-meeting-buttons";
 
 export const metadata: Metadata = { title: "Meetings" };
 
@@ -104,7 +104,6 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
     endTime: "",
     opensBeforeMin: "",
     closesAfterMin: "",
-    weeks: "",
   };
   // Each list keeps the other's page in its links.
   const keep = (p: number) => (p > 1 ? String(p) : undefined);
@@ -117,12 +116,12 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
         title="Meetings"
         back={{ href: "/admin", label: "Admin" }}
         actions={
-          canManage ? <NewMeetingButtons venues={venues} blank={blank} /> : null
+          canManage ? <NewMeetingButton venues={venues} blank={blank} /> : null
         }
       />
       {canManage && venues.length === 0 ? (
         <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          No venues yet. Open <b>Weekly series</b> and add one with the <b>+</b> next to the Venue box.
+          No venues yet. Open <b>Create meeting</b> and add one with the <b>+</b> next to the Venue box.
         </p>
       ) : null}
       <Tabs defaultValue={tab}>
@@ -137,7 +136,8 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
             value={month}
             months={monthOptions(months)}
             allLabel="All months"
-            href={(key) => (key ? `/admin/meetings?tab=${tab}&m=${key}` : `/admin/meetings?tab=${tab}`)}
+            path="/admin/meetings"
+            params={{ tab }}
           />
         </div>
         <TabsContent value="today">
@@ -149,7 +149,7 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
         </TabsContent>
         <TabsContent value="upcoming">
           {upcoming.length === 0 ? (
-            <EmptyState title="No upcoming meetings.">Create a weekly series to get started.</EmptyState>
+            <EmptyState title="No upcoming meetings.">Create the weekly meeting to get started.</EmptyState>
           ) : (
             <MeetingRows rows={upcoming} counts={counts} canManage={canManage} />
           )}

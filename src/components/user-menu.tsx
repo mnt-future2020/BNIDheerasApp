@@ -3,6 +3,8 @@
 import { KeyRoundIcon, LogOutIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { MemberAvatar } from "@/components/member-avatar";
 import {
   DropdownMenu,
@@ -17,15 +19,19 @@ import { authClient } from "@/lib/auth-client";
 export function UserMenu({
   name,
   email,
+  loginId,
   photoUrl,
   isChapterMember,
 }: {
   name: string;
   email: string;
+  /** Mobile number, or the email when there is none: what they sign in with. */
+  loginId: string;
   photoUrl: string | null;
   isChapterMember: boolean;
 }) {
   const router = useRouter();
+  const [changing, setChanging] = useState(false);
   async function signOut() {
     await authClient.signOut();
     router.replace("/login");
@@ -45,23 +51,22 @@ export function UserMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {/* An admin-only login is not a person: no profile, just its password. */}
-        <DropdownMenuItem asChild>
-          <Link href="/me">
-            {isChapterMember ? (
-              <>
-                <UserIcon /> My profile
-              </>
-            ) : (
-              <>
-                <KeyRoundIcon /> Change password
-              </>
-            )}
-          </Link>
+        {isChapterMember ? (
+          <DropdownMenuItem asChild>
+            <Link href="/me">
+              <UserIcon /> My profile
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
+        {/* Above Sign out: it is the thing you came here to do, not the exit. */}
+        <DropdownMenuItem onSelect={() => setChanging(true)}>
+          <KeyRoundIcon /> Change password
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={signOut}>
           <LogOutIcon /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
+      <ChangePasswordDialog open={changing} onOpenChange={setChanging} loginId={loginId} />
     </DropdownMenu>
   );
 }

@@ -5,11 +5,18 @@ export function PageHeader({
   title,
   description,
   actions,
+  inlineActions,
   back,
 }: {
   title: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
+  /**
+   * Keeps a single small action up in the corner beside the title instead of
+   * letting it wrap underneath. Only for one button: a row of them needs the
+   * whole width to wrap into.
+   */
+  inlineActions?: boolean;
   back?: { href: string; label: string };
 }) {
   return (
@@ -24,11 +31,13 @@ export function PageHeader({
         </Link>
       ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className={`min-w-0${inlineActions ? " flex-1" : ""}`}>
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className={`flex flex-wrap gap-2${inlineActions ? " shrink-0" : ""}`}>{actions}</div>
+        ) : null}
       </div>
     </div>
   );

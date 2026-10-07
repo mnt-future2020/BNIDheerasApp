@@ -12,7 +12,6 @@ import { requireAnyCapPage } from "@/lib/session";
 import { formatDate, formatTime, toIstDateInput, toIstTimeInput } from "@/lib/time";
 import { restoreMeeting } from "@/actions/meetings";
 import { ConfirmButton } from "@/components/confirm-button";
-import { PairScreenButton } from "@/components/pair-screen-button";
 import { CopyQrLinkButton } from "@/components/qr-link-button";
 import { MeetingForm } from "../meeting-form";
 
@@ -55,13 +54,9 @@ export default async function EditMeetingPage({ params }: PageProps<"/admin/meet
                 <Link href={`/meetings/${m.id}/summary`}>Summary</Link>
               </Button>
             ) : null}
-            {/* The LVH desk's two jobs, on the meeting they are run for. */}
-            {m.status === "scheduled" && me.caps.has("kiosk.run") ? (
-              <>
-                <CopyQrLinkButton meetingId={m.id} />
-                <PairScreenButton />
-              </>
-            ) : null}
+            {/* The LVH desk's job, on the meeting it is run for. One button:
+                the link already carries the pairing code. */}
+            {m.status === "scheduled" && me.caps.has("kiosk.run") ? <CopyQrLinkButton meetingId={m.id} /> : null}
             {canManage && m.status === "cancelled" && m.endsAt > new Date() ? (
               <ConfirmButton
                 label="Restore"
@@ -106,7 +101,6 @@ export default async function EditMeetingPage({ params }: PageProps<"/admin/meet
                 endTime: toIstTimeInput(m.endsAt),
                 opensBeforeMin: String(opensBefore),
                 closesAfterMin: m.checkinClosesAt ? String(Math.round((+m.checkinClosesAt - +m.startsAt) / 60_000)) : "",
-                weeks: "1",
               }}
             />
           </CardContent>

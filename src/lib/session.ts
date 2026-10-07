@@ -89,14 +89,14 @@ export async function requireMember(): Promise<CurrentMember> {
 /** For pages: redirect home when the member lacks a capability. */
 export async function requireCapPage(cap: Capability): Promise<CurrentMember> {
   const m = await requireMember();
-  if (!m.caps.has(cap)) redirect("/?denied=1");
+  if (!m.caps.has(cap)) redirect("/");
   return m;
 }
 
 /** A page several roles reach for different reasons: the page itself hides what each can't do. */
 export async function requireAnyCapPage(caps: Capability[]): Promise<CurrentMember> {
   const m = await requireMember();
-  if (!caps.some((c) => m.caps.has(c))) redirect("/?denied=1");
+  if (!caps.some((c) => m.caps.has(c))) redirect("/");
   return m;
 }
 

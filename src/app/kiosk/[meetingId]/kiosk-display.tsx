@@ -98,7 +98,7 @@ export function KioskDisplay({ meetingId }: { meetingId: string }) {
 
         {offline ? (
           <div className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-lg font-semibold text-white">
-            <WifiOffIcon /> Screen offline — LVH, use member passes
+            <WifiOffIcon /> Screen offline — LVH, take attendance on paper
           </div>
         ) : null}
 

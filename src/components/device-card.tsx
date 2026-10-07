@@ -54,10 +54,25 @@ export function useLocalDevice(devices: DeviceSummary[]): [LocalDeviceState, (s:
   return [state, setState];
 }
 
-export function DeviceCard({ memberId, devices }: { memberId: string; devices: DeviceSummary[] }) {
+/**
+ * `compact` is for the corner of the home page: an approved phone is a settled
+ * fact and shrinks to a badge there. Every other state asks something of the
+ * member — a code to show, a button to press — so it keeps the full card.
+ */
+export function DeviceCard({
+  memberId,
+  devices,
+  compact,
+}: {
+  memberId: string;
+  devices: DeviceSummary[];
+  compact?: boolean;
+}) {
   const [state, setState] = useLocalDevice(devices);
   const [busy, setBusy] = useState(false);
   const approvedElsewhere = devices.find((d) => d.status === "approved");
+  // Beside the greeting, a card that isn't the badge takes the whole next line.
+  const full = compact ? " w-full" : "";
 
   async function register() {
     setBusy(true);
@@ -88,6 +103,7 @@ export function DeviceCard({ memberId, devices }: { memberId: string; devices: D
   }
 
   if (state.kind === "loading") {
+    if (compact) return null;
     return (
       <Card>
         <CardContent className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
@@ -97,6 +113,17 @@ export function DeviceCard({ memberId, devices }: { memberId: string; devices: D
     );
   }
   if (state.kind === "approved") {
+    if (compact) {
+      return (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-1 pr-2.5 pl-2 text-xs font-medium text-green-900"
+          title={`This phone is approved for check-in · ${state.device.label}`}
+        >
+          <CheckCircle2Icon className="size-3.5 shrink-0 text-green-700" />
+          Phone approved
+        </span>
+      );
+    }
     return (
       <Card className="border-green-200 bg-green-50">
         <CardContent className="flex items-center gap-3 py-4">
@@ -111,7 +138,7 @@ export function DeviceCard({ memberId, devices }: { memberId: string; devices: D
   }
   if (state.kind === "pending") {
     return (
-      <Card className="border-amber-200 bg-amber-50">
+      <Card className={`border-amber-200 bg-amber-50${full}`}>
         <CardContent className="flex items-center gap-4 py-4">
           <Clock3Icon className="size-6 shrink-0 text-amber-700" />
           <div className="flex-1 text-sm">
@@ -130,7 +157,7 @@ export function DeviceCard({ memberId, devices }: { memberId: string; devices: D
   }
   if (state.kind === "unsupported") {
     return (
-      <Card className="border-red-200 bg-red-50">
+      <Card className={`border-red-200 bg-red-50${full}`}>
         <CardContent className="flex items-center gap-3 py-4 text-sm">
           <ShieldAlertIcon className="size-6 shrink-0 text-red-700" />
           This browser can&apos;t register a device. Open the app over HTTPS in Chrome (Android) or Safari (iPhone).
@@ -139,7 +166,7 @@ export function DeviceCard({ memberId, devices }: { memberId: string; devices: D
     );
   }
   return (
-    <Card>
+    <Card className={full.trim() || undefined}>
       <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
         <SmartphoneIcon className="hidden size-6 shrink-0 text-primary sm:block" />
         <div className="flex-1 text-sm">

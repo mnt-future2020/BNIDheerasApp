@@ -8,7 +8,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { Label } from "@/components/ui/label";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/format";
 
-export function ChangePasswordForm() {
+/** `stacked` for a narrow place such as a dialog; otherwise three across. */
+export function ChangePasswordForm({ stacked, onDone }: { stacked?: boolean; onDone?: () => void }) {
   const [state, action] = useActionState(changeOwnPassword, null);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -16,13 +17,14 @@ export function ChangePasswordForm() {
     if (state.ok) {
       toast.success("Password changed. You're still signed in.");
       form.current?.reset();
+      onDone?.();
     } else {
       toast.error(state.error);
     }
-  }, [state]);
+  }, [state, onDone]);
 
   return (
-    <form ref={form} action={action} className="grid gap-3 sm:grid-cols-3">
+    <form ref={form} action={action} className={stacked ? "grid gap-3" : "grid gap-3 sm:grid-cols-3"}>
       <div className="space-y-1.5">
         <Label htmlFor="current">Current password</Label>
         <PasswordInput id="current" name="current" autoComplete="current-password" required />
@@ -49,8 +51,8 @@ export function ChangePasswordForm() {
           required
         />
       </div>
-      <div className="sm:col-span-3">
-        <SubmitButton variant="outline">Change password</SubmitButton>
+      <div className={stacked ? "" : "sm:col-span-3"}>
+        <SubmitButton variant={stacked ? "default" : "outline"}>Change password</SubmitButton>
       </div>
     </form>
   );

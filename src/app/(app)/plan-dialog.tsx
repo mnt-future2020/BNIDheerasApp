@@ -115,6 +115,42 @@ export function PlanDialog({ meetingId }: { meetingId: string }) {
   );
 }
 
+const PLAN_TITLE = {
+  substitute: "Substitute registered",
+  medical: "Medical leave",
+  informed: "You said you can't attend",
+} as const;
+
+/**
+ * Once something has been said, the button stops asking and starts showing. The
+ * way to change it is Undo, next to the line above — one answer at a time.
+ */
+export function ViewPlanButton({ kind, detail }: { kind: Choice; detail: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">View</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{PLAN_TITLE[kind]}</DialogTitle>
+          <DialogDescription>
+            {kind === "substitute"
+              ? "The LVH team will confirm them at the door."
+              : kind === "medical"
+                ? "It counts as M once the Head Table approves it."
+                : "It still counts as an absence (A), but the chapter knows why."}
+          </DialogDescription>
+        </DialogHeader>
+        <p className="rounded-lg bg-muted p-3 text-sm whitespace-pre-line">
+          {detail || <span className="text-muted-foreground">No reason given.</span>}
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function CancelPlanButton({ meetingId }: { meetingId: string }) {
   const [pending, start] = useTransition();
   return (

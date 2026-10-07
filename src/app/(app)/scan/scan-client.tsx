@@ -5,12 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { checkIn } from "@/actions/checkin";
 import { DeviceCard, type DeviceSummary, useLocalDevice } from "@/components/device-card";
-import { MemberPass } from "@/components/member-pass";
 import { QrScanner } from "@/components/qr-scanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { signedPayload } from "@/lib/attendance/payloads";
 import { REJECTION_MESSAGES } from "@/lib/attendance/rules";
 import type { CheckinResult } from "@/lib/attendance/service";
@@ -19,13 +16,12 @@ import { formatTime } from "@/lib/time";
 
 type Phase = "idle" | "scanning" | "submitting" | "done";
 
-export function ScanClient({ memberId, devices, isDev }: { memberId: string; devices: DeviceSummary[]; isDev: boolean }) {
+export function ScanClient({ memberId, devices }: { memberId: string; devices: DeviceSummary[] }) {
   const router = useRouter();
   const [local] = useLocalDevice(devices);
   const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<CheckinResult | null>(null);
   const [problem, setProblem] = useState("");
-  const [devToken, setDevToken] = useState("");
 
   async function submit(qrToken: string) {
     setProblem("");
@@ -58,13 +54,7 @@ export function ScanClient({ memberId, devices, isDev }: { memberId: string; dev
   }
 
   return (
-    <Tabs defaultValue="scan">
-      <TabsList className="mb-4 grid w-full grid-cols-2">
-        <TabsTrigger value="scan">Scan venue QR</TabsTrigger>
-        <TabsTrigger value="pass">My check-in pass</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="scan" className="space-y-4">
+    <div className="space-y-4">
         {phase === "idle" ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-4 py-8 text-center">
@@ -109,28 +99,7 @@ export function ScanClient({ memberId, devices, isDev }: { memberId: string; dev
             onDone={() => router.push("/")}
           />
         ) : null}
-
-        {isDev ? (
-          <Card className="border-dashed">
-            <CardContent className="space-y-2 py-4 text-sm">
-              <p className="font-semibold">Developer tools (not in production)</p>
-              <Textarea
-                placeholder="Paste a BNID1. token from the kiosk screen"
-                value={devToken}
-                onChange={(e) => setDevToken(e.target.value)}
-              />
-              <Button size="sm" variant="outline" disabled={!devToken} onClick={() => submit(devToken.trim())}>
-                Check in with pasted token
-              </Button>
-            </CardContent>
-          </Card>
-        ) : null}
-      </TabsContent>
-
-      <TabsContent value="pass">
-        <MemberPass memberId={memberId} deviceId={local.device.id} />
-      </TabsContent>
-    </Tabs>
+    </div>
   );
 }
 
@@ -180,7 +149,7 @@ function ResultCard({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Still stuck? Open &quot;My check-in pass&quot; and show it to the LVH team.
+          Still stuck? Ask the LVH team at the door.
         </p>
       </CardContent>
     </Card>

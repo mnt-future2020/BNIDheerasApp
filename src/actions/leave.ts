@@ -7,20 +7,27 @@ import { db } from "@/db";
 import { leaveRequest, member, substitute } from "@/db/schema";
 import { type ActionResult, runAction, UserError } from "@/lib/action";
 import { getMeetingWithVenue } from "@/lib/attendance/queries";
-import { planDeadline } from "@/lib/attendance/rules";
+import { planDeadline, undoDeadline } from "@/lib/attendance/rules";
 import { audit } from "@/lib/audit";
 import { normalizePhone } from "@/lib/members";
-import { assertCap, assertMember } from "@/lib/session";
+import { assertAnyCap, assertCap, assertMember } from "@/lib/session";
 
-/**
- * Members can change their own plans until the meeting's deadline: the one set
- * on the meeting, or the start time when none is set.
- */
+const TOO_LATE = "It's too late to change this for the meeting. Please speak to the LVH team or the Secretary.";
+
+/** Giving a reason or sending a substitute closes when check-in opens. */
 async function openMeetingForMember(meetingId: string) {
   const m = await getMeetingWithVenue(meetingId);
   if (!m || m.status !== "scheduled") throw new UserError("This meeting isn't open.");
-  if (Date.now() >= planDeadline(m).getTime()) {
-    throw new UserError("It's too late to change this for the meeting. Please speak to the LVH team or the Secretary.");
+  if (Date.now() >= planDeadline(m).getTime()) throw new UserError(TOO_LATE);
+  return m;
+}
+
+/** Taking it back is allowed for longer — until the meeting itself starts. */
+async function undoableMeeting(meetingId: string) {
+  const m = await getMeetingWithVenue(meetingId);
+  if (!m || m.status !== "scheduled") throw new UserError("This meeting isn't open.");
+  if (Date.now() >= undoDeadline(m).getTime()) {
+    throw new UserError("The meeting has started, so this can't be undone. Speak to the LVH team or the Secretary.");
   }
   return m;
 }
@@ -81,10 +88,71 @@ export async function registerSubstitute(input: z.input<typeof subSchema>): Prom
 export async function cancelPlan(meetingId: string): Promise<ActionResult> {
   return runAction(async () => {
     const me = await assertMember();
-    const m = await openMeetingForMember(z.uuid().parse(meetingId));
+    const m = await undoableMeeting(z.uuid().parse(meetingId));
     await db.delete(leaveRequest).where(and(eq(leaveRequest.meetingId, m.id), eq(leaveRequest.memberId, me.id)));
     await db.delete(substitute).where(and(eq(substitute.meetingId, m.id), eq(substitute.memberId, me.id)));
     await audit({ actorId: me.id, action: "leave.cancel", entity: "meeting", entityId: m.id });
+    refresh();
+    return null;
+  });
+}
+
+const recordSchema = z.object({
+  meetingId: z.uuid(),
+  memberId: z.uuid("Choose the member"),
+  kind: z.enum(["medical", "informed"]),
+  reason: z.string().trim().min(2, "Write what they said").max(300),
+});
+
+/**
+ * A member who told the Head Table they can't attend — on the phone, in the
+ * WhatsApp group, in person. Written down from the PALMS sheet, on the letter
+ * that says they were away. The Head Table writing it down is the decision, so
+ * it is recorded as approved and the sheet keeps that member marked: M for
+ * medical leave, A for anything else.
+ */
+export async function recordAbsence(input: z.input<typeof recordSchema>): Promise<ActionResult> {
+  return runAction(async () => {
+    const me = await assertAnyCap(["attendance.manual", "leave.approve"]);
+    const data = recordSchema.parse(input);
+    const m = await getMeetingWithVenue(data.meetingId);
+    if (!m) throw new UserError("Meeting not found.");
+    if (m.status === "finalized") throw new UserError("This meeting is finalized. Reopen it to change PALMS.");
+    if (m.status === "cancelled") throw new UserError("This meeting was cancelled.");
+    const [who] = await db
+      .select({ name: member.fullName, isChapterMember: member.isChapterMember })
+      .from(member)
+      .where(eq(member.id, data.memberId));
+    if (!who?.isChapterMember) throw new UserError("That isn't a chapter member.");
+    await db
+      .insert(leaveRequest)
+      .values({
+        meetingId: m.id,
+        memberId: data.memberId,
+        kind: data.kind,
+        reason: data.reason,
+        status: "approved",
+        decidedById: me.id,
+        decidedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [leaveRequest.meetingId, leaveRequest.memberId],
+        set: {
+          kind: data.kind,
+          reason: data.reason,
+          status: "approved",
+          decidedById: me.id,
+          decidedAt: new Date(),
+        },
+      });
+    await audit({
+      actorId: me.id,
+      action: "leave.record",
+      entity: "meeting",
+      entityId: m.id,
+      reason: data.reason,
+      after: { member: who.name, kind: data.kind },
+    });
     refresh();
     return null;
   });

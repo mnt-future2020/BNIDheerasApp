@@ -31,25 +31,35 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** The last day of a month, without stepping outside IST. */
 const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
 
+/** The first and last day of the span, and the name both create and edit give it. */
+function spanOf(d: z.infer<typeof tenureSchema>) {
+  return {
+    startsOn: `${d.startYear}-${pad(d.startMonth)}-01`,
+    endsOn: `${d.endYear}-${pad(d.endMonth)}-${pad(lastDay(d.endYear, d.endMonth))}`,
+    name:
+      d.startYear === d.endYear
+        ? `${MONTH_NAMES[d.startMonth - 1]} – ${MONTH_NAMES[d.endMonth - 1]} ${d.endYear}`
+        : `${MONTH_NAMES[d.startMonth - 1]} ${d.startYear} – ${MONTH_NAMES[d.endMonth - 1]} ${d.endYear}`,
+  };
+}
+
+/** Tenures can't overlap, or a meeting would belong to two of them. */
+async function assertFree(startsOn: string, endsOn: string, exceptId?: string) {
+  const [clash] = await db
+    .select({ name: term.name })
+    .from(term)
+    .where(and(lte(term.startsOn, endsOn), gte(term.endsOn, startsOn), exceptId ? ne(term.id, exceptId) : undefined))
+    .limit(1);
+  if (clash) throw new UserError(`Those months overlap the "${clash.name}" tenure.`);
+}
+
 /** Tenures run in whole months: Apr 2027 – Sep 2027, 1 April to 30 September. */
 export async function createTenure(input: z.input<typeof tenureSchema>): Promise<ActionResult<{ id: string; name: string; copied: number }>> {
   return runAction(async () => {
     const me = await assertCap("roles.manage");
     const d = tenureSchema.parse(input);
-    const startsOn = `${d.startYear}-${pad(d.startMonth)}-01`;
-    const endsOn = `${d.endYear}-${pad(d.endMonth)}-${pad(lastDay(d.endYear, d.endMonth))}`;
-    const name =
-      d.startYear === d.endYear
-        ? `${MONTH_NAMES[d.startMonth - 1]} – ${MONTH_NAMES[d.endMonth - 1]} ${d.endYear}`
-        : `${MONTH_NAMES[d.startMonth - 1]} ${d.startYear} – ${MONTH_NAMES[d.endMonth - 1]} ${d.endYear}`;
-
-    // Tenures can't overlap, or a meeting would belong to two of them.
-    const [clash] = await db
-      .select({ name: term.name })
-      .from(term)
-      .where(and(lte(term.startsOn, endsOn), gte(term.endsOn, startsOn), ne(term.id, "")))
-      .limit(1);
-    if (clash) throw new UserError(`Those months overlap the "${clash.name}" tenure.`);
+    const { startsOn, endsOn, name } = spanOf(d);
+    await assertFree(startsOn, endsOn);
 
     const [row] = await db.insert(term).values({ name, startsOn, endsOn }).returning({ id: term.id });
 
@@ -83,6 +93,37 @@ export async function createTenure(input: z.input<typeof tenureSchema>): Promise
     });
     refresh();
     return { id: row.id, name, copied };
+  });
+}
+
+/**
+ * Changes a tenure's months. The name follows the months, so it is never typed
+ * and never disagrees with the dates. Role assignments stay with the tenure;
+ * what moves is the window meetings, PALMS and events are read through.
+ */
+export async function updateTenure(
+  id: string,
+  input: z.input<typeof tenureSchema>,
+): Promise<ActionResult<{ name: string }>> {
+  return runAction(async () => {
+    const me = await assertCap("roles.manage");
+    const tenureId = z.uuid().parse(id);
+    const d = tenureSchema.parse(input);
+    const { startsOn, endsOn, name } = spanOf(d);
+    const [before] = await db.select().from(term).where(eq(term.id, tenureId));
+    if (!before) throw new UserError("That tenure no longer exists.");
+    await assertFree(startsOn, endsOn, tenureId);
+    await db.update(term).set({ name, startsOn, endsOn }).where(eq(term.id, tenureId));
+    await audit({
+      actorId: me.id,
+      action: "term.update",
+      entity: "term",
+      entityId: tenureId,
+      before: { name: before.name, startsOn: before.startsOn, endsOn: before.endsOn },
+      after: { name, startsOn, endsOn },
+    });
+    refresh();
+    return { name };
   });
 }
 

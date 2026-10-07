@@ -28,12 +28,38 @@ export function checkinClosingTime(m: { checkinClosesAt: Date | null; endsAt: Da
 }
 
 /**
- * A member's last chance to give a reason, plan an absence or send a
- * substitute. The same deadline as check-in once one is set; without it the
- * old rule holds, where plans close the moment the meeting starts.
+ * A member's last chance to say they can't attend, or to send a substitute.
+ * Check-in opening is the cut-off: from that moment the room is being counted,
+ * and the Head Table is working from a list that should no longer move.
  */
-export function planDeadline(m: { checkinClosesAt: Date | null; startsAt: Date }): Date {
-  return m.checkinClosesAt ?? m.startsAt;
+export function planDeadline(m: { checkinOpensAt: Date }): Date {
+  return m.checkinOpensAt;
+}
+
+/**
+ * How long a member can take back what they said. Later than the deadline for
+ * giving it: somebody who finds they can come after all should be able to undo
+ * right up to the meeting — but never once it has begun, because by then the
+ * reason is part of that meeting's record.
+ */
+export function undoDeadline(m: { startsAt: Date }): Date {
+  return m.startsAt;
+}
+
+/**
+ * Why the Check in page offers no scanner to someone who has already said they
+ * can't come. Home shows the same state as a line and a View button, so this
+ * sentence belongs where there is nothing else to look at.
+ */
+export function planNotice(kind: "substitute" | "medical" | "informed", undoWhere: string | null): string {
+  const what =
+    kind === "substitute"
+      ? "Your substitute is expected, so there is nothing to check in to."
+      : "You're down as not attending, so check-in is closed for you.";
+  const how = undoWhere
+    ? `Coming after all? ${undoWhere}`
+    : "The meeting has started, so this can no longer be changed here — see the LVH team.";
+  return `${what} ${how}`;
 }
 
 export const FUTURE_PALMS_MESSAGE = "This meeting hasn't happened yet. PALMS can be entered on the day of the meeting.";

@@ -18,6 +18,7 @@ export default async function NearPage() {
       <PageHeader
         title="Members near me"
         description="Chapter businesses from nearest to farthest. Distances are straight-line."
+        inlineActions
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href="/me/location">{mine ? "Edit my location" : "Set my location"}</Link>

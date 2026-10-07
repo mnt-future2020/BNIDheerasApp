@@ -28,6 +28,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <UserMenu
             name={name}
             email={me.email}
+            loginId={me.phone ?? me.email}
             photoUrl={publicUrl(me.photoKey) ?? (me.isChapterMember ? null : "/images/bni-avatar.webp")}
             isChapterMember={me.isChapterMember}
           />

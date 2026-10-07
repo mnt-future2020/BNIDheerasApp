@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageContainer, PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { attendance } from "@/db/schema";
 import { getBoardData } from "@/lib/attendance/board";
@@ -16,7 +15,7 @@ import { PalmsSheet } from "./palms-sheet";
 export const metadata: Metadata = { title: "Enter PALMS" };
 
 export default async function EnterPalmsPage({ params }: PageProps<"/admin/meetings/[id]/palms">) {
-  const me = await requireCapPage("attendance.manual");
+  await requireCapPage("attendance.manual");
   const { id } = await params;
   const m = await getMeetingWithVenue(id);
   if (!m) notFound();
@@ -31,14 +30,6 @@ export default async function EnterPalmsPage({ params }: PageProps<"/admin/meeti
         title={`Enter PALMS · ${formatDate(m.startsAt)}`}
         back={{ href: `/admin/meetings/${m.id}`, label: "Meeting" }}
         description={`${m.title} · ${formatTime(m.startsAt)}`}
-        actions={
-          // Where the Attendance Coordinator goes once the sheet is in.
-          me.caps.has("palms.view") || me.caps.has("meeting.finalize") ? (
-            <Button asChild variant="outline">
-              <Link href={`/meetings/${m.id}/summary`}>Summary</Link>
-            </Button>
-          ) : null
-        }
       />
       {m.status === "finalized" ? (
         <p className="rounded-lg bg-muted p-4 text-sm">
@@ -67,7 +58,12 @@ export default async function EnterPalmsPage({ params }: PageProps<"/admin/meeti
             method: r.method,
             at: r.at,
             substitute: r.substitute?.name ?? null,
+            substitutePhone: r.substitute?.phone ?? null,
+            // Only an approved leave fills the sheet in; what was said is shown
+            // either way, so a medical leave still waiting can be read here.
             leave: r.leave && r.leave.status === "approved" ? r.leave.kind : null,
+            leaveReason: r.leave?.reason ?? null,
+            leaveStatus: r.leave?.status ?? null,
           }))}
         />
       )}

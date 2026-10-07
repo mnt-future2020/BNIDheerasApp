@@ -4,7 +4,7 @@ import { PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { createMeeting, generateWeekly, updateMeeting } from "@/actions/meetings";
+import { createMeeting, updateMeeting } from "@/actions/meetings";
 import { saveVenue } from "@/actions/venues";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -26,7 +26,6 @@ export type MeetingFormValues = {
   endTime: string;
   opensBeforeMin: string;
   closesAfterMin: string;
-  weeks: string;
 };
 
 const KIND_LABELS = {
@@ -44,7 +43,7 @@ export function MeetingForm({
   meetingId,
   onDone,
 }: {
-  mode: "single" | "weekly" | "edit";
+  mode: "create" | "edit";
   venues: VenueOption[];
   initial: MeetingFormValues;
   meetingId?: string;
@@ -71,31 +70,24 @@ export function MeetingForm({
         closesAfterMin: v.closesAfterMin,
         venueId: v.venueId,
       };
-      if (formMode === "weekly") {
-        const res = await generateWeekly({ ...common, weeks: v.weeks });
+      if (formMode === "edit") {
+        // Nothing is pre-picked, so both have to be chosen before this can be saved.
+        if (!v.kind || !v.mode) return void toast.error("Choose the type, and whether it is in person or online.");
+        const res = await updateMeeting(meetingId!, { ...common, kind: v.kind, mode: v.mode });
         if (!res.ok) return void toast.error(res.error);
-        toast.success(
-          res.data.skipped
-            ? `${res.data.count} created; ${res.data.skipped} week(s) already had a meeting and were skipped.`
-            : `${res.data.count} weekly meetings created.`,
-        );
-        // Every box goes back to empty, so nothing is created from leftovers.
-        setV(initial);
-        onDone?.();
+        toast.success("Saved.");
+        router.push("/admin/meetings");
         router.refresh();
         return;
       }
-      // Nothing is pre-picked, so both have to be chosen before this can be saved.
-      if (!v.kind || !v.mode) return void toast.error("Choose the type, and whether it is in person or online.");
-      const payload = { ...common, kind: v.kind, mode: v.mode };
-      const res = formMode === "edit" ? await updateMeeting(meetingId!, payload) : await createMeeting(payload);
+      // A new one is the chapter meeting at its hall: the type and the venue
+      // are only worth asking about when an existing meeting is being changed.
+      const res = await createMeeting({ ...common, kind: "weekly", mode: "in_person" });
       if (!res.ok) return void toast.error(res.error);
-      toast.success("Saved.");
-      if (formMode === "single") {
-        setV(initial);
-        onDone?.();
-      }
-      router.push("/admin/meetings");
+      toast.success("Meeting created.");
+      // Every box goes back to empty, so nothing is created from leftovers.
+      setV(initial);
+      onDone?.();
       router.refresh();
     });
   }
@@ -106,7 +98,7 @@ export function MeetingForm({
         <Field label="Title">
           <Input value={v.title} onChange={(e) => set("title", e.target.value)} required />
         </Field>
-        {formMode !== "weekly" ? (
+        {formMode === "edit" ? (
           <Field label="Type">
             <Select value={v.kind} onValueChange={(x) => set("kind", x as MeetingFormValues["kind"])}>
               <SelectTrigger className="w-full">
@@ -122,7 +114,7 @@ export function MeetingForm({
             </Select>
           </Field>
         ) : null}
-        {formMode !== "weekly" ? (
+        {formMode === "edit" ? (
           <Field label="Where">
             <Select value={v.mode} onValueChange={(x) => set("mode", x as MeetingFormValues["mode"])}>
               <SelectTrigger className="w-full">
@@ -135,12 +127,12 @@ export function MeetingForm({
             </Select>
           </Field>
         ) : null}
-        {v.mode === "in_person" || formMode === "weekly" ? (
+        {v.mode === "in_person" || formMode === "create" ? (
           <Field label="Venue">
             <VenueField venues={venues} value={v.venueId} onChange={(id) => set("venueId", id)} />
           </Field>
         ) : null}
-        <Field label={formMode === "weekly" ? "First meeting date" : "Date"}>
+        <Field label="Meeting date">
           <DatePicker value={v.date} onChange={(x) => set("date", x)} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -151,11 +143,6 @@ export function MeetingForm({
             <TimePicker value={v.endTime} onChange={(x) => set("endTime", x)} placeholder="End" />
           </Field>
         </div>
-        {formMode === "weekly" ? (
-          <Field label="Number of weeks">
-            <Input inputMode="numeric" value={v.weeks} onChange={(e) => set("weeks", e.target.value.replace(/\D/g, ""))} />
-          </Field>
-        ) : null}
         <Field label="Check-in opens (minutes before start)">
           <Input
             inputMode="numeric"
@@ -165,7 +152,7 @@ export function MeetingForm({
         </Field>
         <Field
           label="Check-in closes (minutes after start)"
-          hint="A member can check in, or give a reason for missing it, until then. Empty: check-in runs to the end of the meeting, and reasons close when it starts."
+          hint="How long check-in stays open. Empty: it runs to the end of the meeting. Saying “can’t attend” closes earlier — when check-in opens."
         >
           <Input
             inputMode="numeric"
@@ -176,7 +163,7 @@ export function MeetingForm({
         </Field>
       </div>
       <Button type="submit" disabled={pending}>
-        {formMode === "weekly" ? "Create weekly meetings" : formMode === "edit" ? "Save changes" : "Create meeting"}
+        {formMode === "edit" ? "Save changes" : "Create meeting"}
       </Button>
     </form>
   );

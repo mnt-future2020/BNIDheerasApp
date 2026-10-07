@@ -1,9 +1,8 @@
 "use client";
 
-import { ListIcon, Loader2Icon, LocateFixedIcon, MapIcon, MessageCircleIcon, NavigationIcon, PhoneIcon, StoreIcon } from "lucide-react";
-import dynamic from "next/dynamic";
+import { Loader2Icon, LocateFixedIcon, MessageCircleIcon, NavigationIcon, PhoneIcon, StoreIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { nearbyFromHere } from "@/actions/location";
 import { MemberAvatar } from "@/components/member-avatar";
@@ -16,11 +15,6 @@ import { getBestPosition } from "@/lib/geolocation";
 import type { NearbyMember } from "@/lib/nearby";
 import { paginate } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
-
-const NearMap = dynamic(() => import("./near-map"), {
-  ssr: false,
-  loading: () => <div className="h-[60vh] w-full animate-pulse rounded-xl bg-muted" />,
-});
 
 type Origin = { lat: number; lng: number; label: string };
 
@@ -36,34 +30,6 @@ const LIMITS = [
   { value: 5000, label: "5 km" },
   { value: 10000, label: "10 km" },
 ];
-const VIEW_KEY = "bni-near-view";
-
-// The List/Map choice is remembered per phone (localStorage), read via useSyncExternalStore.
-const viewListeners = new Set<() => void>();
-function subscribeView(cb: () => void) {
-  viewListeners.add(cb);
-  window.addEventListener("storage", cb);
-  return () => {
-    viewListeners.delete(cb);
-    window.removeEventListener("storage", cb);
-  };
-}
-function readView(): "list" | "map" {
-  try {
-    return localStorage.getItem(VIEW_KEY) === "map" ? "map" : "list";
-  } catch {
-    return "list";
-  }
-}
-function writeView(v: "list" | "map") {
-  try {
-    localStorage.setItem(VIEW_KEY, v);
-  } catch {
-    // storage unavailable (private mode): the choice just isn't remembered
-  }
-  viewListeners.forEach((l) => l());
-}
-
 /** One GPS reading, then the nearest-first list from there. The position isn't stored. */
 async function fetchFromHere(): Promise<{ origin: Origin; list: NearbyMember[] }> {
   const fix = await getBestPosition({ maxWaitMs: 8000, goodEnoughM: 50 });
@@ -73,7 +39,6 @@ async function fetchFromHere(): Promise<{ origin: Origin; list: NearbyMember[] }
 }
 
 export function NearMe({ business, initial }: { business: Origin | null; initial: NearbyMember[] | null }) {
-  const view = useSyncExternalStore(subscribeView, readView, () => "list" as const);
   const [from, setFrom] = useState<"business" | "gps">(business ? "business" : "gps");
   const [gps, setGps] = useState<{ origin: Origin; list: NearbyMember[] } | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -132,14 +97,6 @@ export function NearMe({ business, initial }: { business: Origin | null; initial
             {locating ? <Loader2Icon className="size-4 animate-spin" /> : <LocateFixedIcon className="size-4" />} From where I am
           </Toggle>
         </div>
-        <div className="inline-flex rounded-lg border p-0.5 sm:ml-auto">
-          <Toggle active={view === "list"} onClick={() => writeView("list")}>
-            <ListIcon className="size-4" /> List
-          </Toggle>
-          <Toggle active={view === "map"} onClick={() => writeView("map")}>
-            <MapIcon className="size-4" /> Map
-          </Toggle>
-        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -179,8 +136,6 @@ export function NearMe({ business, initial }: { business: Origin | null; initial
             </>
           )}
         </div>
-      ) : view === "map" ? (
-        <NearMap origin={origin} members={list} />
       ) : (
         // A new search, distance limit or starting point goes back to page 1.
         <NearList key={`${from}|${query}|${limit}`} members={list} />

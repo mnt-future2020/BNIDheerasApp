@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { recordAbsence } from "@/actions/leave";
 import { setHeadcount } from "@/actions/lvh";
 import { savePalms } from "@/actions/palms";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ATTENDANCE_STATUSES, type AttendanceStatus } from "@/db/schema";
 import { STATUS_LABELS } from "@/lib/attendance/rules";
 import { cn } from "@/lib/utils";
@@ -22,8 +24,35 @@ type Row = {
   method: string | null;
   at: string | null;
   substitute: string | null;
+  substitutePhone: string | null;
   leave: "medical" | "informed" | null;
+  leaveReason: string | null;
+  leaveStatus: string | null;
 };
+
+/**
+ * What a member already told us, as a letter. Every way of saying "I can't
+ * attend" lands here: a substitute is S, medical leave is M, and simply letting
+ * the chapter know is A. A substitute wins over a leave, because somebody is
+ * in the seat — if they never turned up, the letter is changed on the sheet.
+ */
+const fromPlan = (m: Row): AttendanceStatus | "" =>
+  m.substitute ? "S" : m.leave === "medical" ? "M" : m.leave === "informed" ? "A" : "";
+
+/**
+ * Two colours, because the sheet is read at a glance: green is everyone who was
+ * in the room, blue is everyone who was not. Only the chosen letter is filled.
+ */
+const PICKED_COLOR: Record<AttendanceStatus, string> = {
+  P: "border-transparent bg-emerald-600 text-white hover:bg-emerald-600/90",
+  L: "border-transparent bg-emerald-600 text-white hover:bg-emerald-600/90",
+  A: "border-transparent bg-sky-600 text-white hover:bg-sky-600/90",
+  M: "border-transparent bg-sky-600 text-white hover:bg-sky-600/90",
+  S: "border-transparent bg-sky-600 text-white hover:bg-sky-600/90",
+};
+
+/** The three letters that mean "not in the room", which carry a reason. */
+const AWAY: AttendanceStatus[] = ["A", "M", "S"];
 
 /** One tap per member: P, A, L, M or S for the whole chapter, then Save. */
 export function PalmsSheet({
@@ -39,12 +68,16 @@ export function PalmsSheet({
   headcount: number | null;
 }) {
   const router = useRouter();
+  // Anyone who said they can't come is already marked, so the sheet starts
+  // where the chapter left it — S, M or A. It is only a starting point:
+  // tapping another letter wins, and nothing is saved until Save.
   const [picked, setPicked] = useState<Record<string, AttendanceStatus | "">>(
-    Object.fromEntries(members.map((m) => [m.id, m.status])),
+    Object.fromEntries(members.map((m) => [m.id, m.status || fromPlan(m)])),
   );
   const [reason, setReason] = useState("");
   const [asking, setAsking] = useState(false);
   const [countText, setCountText] = useState(headcount === null ? "" : String(headcount));
+  const [away, setAway] = useState<{ row: Row; status: AttendanceStatus } | null>(null);
   const [pending, start] = useTransition();
 
   const changed = members.filter((m) => picked[m.id] !== m.status).length;
@@ -128,10 +161,17 @@ export function PalmsSheet({
                   key={s}
                   type="button"
                   size="icon-sm"
-                  variant={picked[m.id] === s ? "default" : "outline"}
+                  variant="outline"
+                  className={cn(picked[m.id] === s && PICKED_COLOR[s])}
                   aria-label={`${m.name}: ${STATUS_LABELS[s]}`}
                   aria-pressed={picked[m.id] === s}
-                  onClick={() => setPicked((p) => ({ ...p, [m.id]: p[m.id] === s ? "" : s }))}
+                  // Away means there is a reason to read, so the letter opens it
+                  // rather than being set behind the Head Table's back.
+                  onClick={() =>
+                    AWAY.includes(s)
+                      ? setAway({ row: m, status: s })
+                      : setPicked((p) => ({ ...p, [m.id]: p[m.id] === s ? "" : s }))
+                  }
                 >
                   {s}
                 </Button>
@@ -207,6 +247,131 @@ export function PalmsSheet({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {away ? (
+        <AwayDialog
+          meetingId={meetingId}
+          row={away.row}
+          status={away.status}
+          current={picked[away.row.id] ?? ""}
+          onClose={() => setAway(null)}
+          onPick={(status) => {
+            setPicked((p) => ({ ...p, [away.row.id]: p[away.row.id] === status ? "" : status }));
+            setAway(null);
+          }}
+        />
+      ) : null}
     </div>
+  );
+}
+
+const AWAY_TITLE: Record<string, string> = { A: "Absent", M: "Medical leave", S: "Substitute" };
+
+/**
+ * A, M and S all mean the member wasn't in their seat, and each has something
+ * behind it — what they told the Head Table, or who came instead. The letter
+ * opens that rather than setting itself, so nobody is marked absent without the
+ * reason in front of them, and a reason can be written here.
+ */
+function AwayDialog({
+  meetingId,
+  row,
+  status,
+  current,
+  onPick,
+  onClose,
+}: {
+  meetingId: string;
+  row: Row;
+  status: AttendanceStatus;
+  /** What the sheet shows for this member right now, saved or not. */
+  current: AttendanceStatus | "";
+  onPick: (status: AttendanceStatus) => void;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [text, setText] = useState(row.leaveReason ?? "");
+  const [pending, start] = useTransition();
+  const isSub = status === "S";
+  const already = current === status;
+
+  const saveReason = () =>
+    start(async () => {
+      const res = await recordAbsence({
+        meetingId,
+        memberId: row.id,
+        kind: status === "M" ? "medical" : "informed",
+        reason: text,
+      });
+      if (!res.ok) return void toast.error(res.error);
+      toast.success("Reason saved.");
+      router.refresh();
+      onPick(status);
+    });
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {row.name} · {AWAY_TITLE[status]}
+          </DialogTitle>
+          <DialogDescription>
+            {isSub
+              ? "Who came in their place."
+              : "What they told the Head Table, or what the member said from their phone."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {isSub ? (
+          <p className="rounded-lg bg-muted p-3 text-sm">
+            {row.substitute ? (
+              <>
+                <b>{row.substitute}</b>
+                {row.substitutePhone ? ` · ${row.substitutePhone}` : ""}
+              </>
+            ) : (
+              <span className="text-muted-foreground">
+                No substitute registered. The member can send one from their phone until check-in opens.
+              </span>
+            )}
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor="away-reason">Reason</Label>
+            <Textarea
+              id="away-reason"
+              rows={3}
+              value={text}
+              placeholder="e.g. out of town for a wedding"
+              onChange={(e) => setText(e.target.value)}
+            />
+            {row.leaveReason ? (
+              <p className="text-xs text-muted-foreground">
+                {row.leaveStatus === "approved" ? "On record" : `On record · ${row.leaveStatus}`}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Nothing on record yet.</p>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" disabled={pending} onClick={onClose}>
+            Cancel
+          </Button>
+          {/* Marking and writing the reason are one tap when there is a reason. */}
+          {isSub || text.trim().length < 2 ? (
+            <Button disabled={pending} onClick={() => onPick(status)}>
+              {already ? `Clear ${status}` : `Mark ${status}`}
+            </Button>
+          ) : (
+            <Button disabled={pending} onClick={saveReason}>
+              Save reason and mark {status}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

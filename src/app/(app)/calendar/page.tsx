@@ -1,6 +1,7 @@
 import { ClockIcon, MapPinIcon, UserIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LinkSelect } from "@/components/link-select";
 import { MonthFilter } from "@/components/month-filter";
 import { PageContainer, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ import { requireMember } from "@/lib/session";
 import { selectedTenure } from "@/lib/tenure";
 import { formatDate, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { LinkSelect } from "./filters";
+
 
 export const metadata: Metadata = { title: "Events" };
 
@@ -70,7 +71,12 @@ export default async function EventsPage({ searchParams }: PageProps<"/calendar"
       {/* All three narrow the same list, so they sit on one row together rather
           than "My slots" living apart up in the page actions. */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <MonthFilter value={month} months={monthOptions(months)} href={(key) => href({ m: key })} />
+        <MonthFilter
+          value={month}
+          months={monthOptions(months)}
+          path="/calendar"
+          params={{ kind: kindFilter || undefined, mine: onlyMine ? "1" : undefined }}
+        />
         {kinds.length > 1 ? (
           <LinkSelect
             label="Type"

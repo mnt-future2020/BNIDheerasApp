@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Visitors" };
 
 export default async function VisitorsPage({ params }: PageProps<"/admin/meetings/[id]/visitors">) {
   const me = await requireMember();
-  if (!me.caps.has("kiosk.run") && !me.caps.has("meeting.finalize")) redirect("/?denied=1");
+  if (!me.caps.has("kiosk.run") && !me.caps.has("meeting.finalize")) redirect("/");
   const { id } = await params;
   const [m] = await db.select().from(meeting).where(eq(meeting.id, id));
   if (!m) notFound();

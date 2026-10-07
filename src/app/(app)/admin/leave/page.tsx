@@ -104,7 +104,7 @@ export default async function LeavePage({ searchParams }: PageProps<"/admin/leav
               value={month}
               months={monthOptions(months)}
               allLabel="All months"
-              href={(key) => (key ? `/admin/leave?m=${key}` : "/admin/leave")}
+              path="/admin/leave"
             />
           </div>
           {decided.length === 0 ? <EmptyState title="No decisions that month." /> : null}

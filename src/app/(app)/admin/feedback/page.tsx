@@ -57,7 +57,7 @@ export default async function FeedbackAdminPage({ searchParams }: PageProps<"/ad
         value={month}
         months={monthOptions(months)}
         allLabel="Whole tenure"
-        href={(key) => (key ? `/admin/feedback?m=${key}` : "/admin/feedback")}
+        path="/admin/feedback"
       />
       <div className="space-y-8">
         {sections.map((s) => {

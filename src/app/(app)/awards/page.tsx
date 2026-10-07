@@ -7,7 +7,7 @@ import { EmptyState, PageContainer, PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { award, meeting } from "@/db/schema";
-import { monthOf, monthOptions } from "@/lib/months";
+import { monthOf, monthOptions, tenureMonthKeys } from "@/lib/months";
 import { requireMember } from "@/lib/session";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDate } from "@/lib/time";
@@ -34,7 +34,10 @@ export default async function AwardsPage({ searchParams }: PageProps<"/awards">)
     .orderBy(desc(meeting.startsAt));
 
   const { month: monthParam } = await searchParams;
-  const months = [...new Set(weeks.map((w) => monthOf(w.date)))];
+  // Every month of the tenure, the same six Events offers — not only the months
+  // that happen to have recognitions, so the dropdown doesn't change shape as
+  // the Head Table publishes week by week.
+  const months = tenure ? tenureMonthKeys(tenure) : [...new Set(weeks.map((w) => monthOf(w.date)))];
   const month = typeof monthParam === "string" && months.includes(monthParam) ? monthParam : "";
   const shown = month ? weeks.filter((w) => monthOf(w.date) === month) : weeks;
 
@@ -58,8 +61,9 @@ export default async function AwardsPage({ searchParams }: PageProps<"/awards">)
           <MonthFilter
             value={month}
             months={monthOptions(months)}
-            allLabel="All months"
-            href={(key) => (key ? `/awards?month=${key}` : "/awards")}
+            allLabel="Whole tenure"
+            path="/awards"
+            param="month"
           />
           {shown.length === 0 ? (
             <EmptyState title="No recognitions that month." />

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarPlusIcon, PlusIcon } from "lucide-react";
+import { CalendarPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,30 +8,26 @@ import { MeetingForm, type MeetingFormValues, type VenueOption } from "./meeting
 
 /**
  * Creating meetings is an action, not a list, so it sits on a button rather
- * than a tab beside Today, Upcoming and Past.
+ * than a tab beside Today, Upcoming and Past. One meeting at a time: a
+ * training or a social is an Event, under Admin → Calendar.
  */
-export function NewMeetingButtons({ venues, blank }: { venues: VenueOption[]; blank: MeetingFormValues }) {
-  const [open, setOpen] = useState<"weekly" | "single" | null>(null);
+export function NewMeetingButton({ venues, blank }: { venues: VenueOption[]; blank: MeetingFormValues }) {
+  const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen("weekly")}>
-        <CalendarPlusIcon /> Weekly series
+      <Button onClick={() => setOpen(true)}>
+        <CalendarPlusIcon /> Create meeting
       </Button>
-      <Button variant="outline" onClick={() => setOpen("single")}>
-        <PlusIcon /> One meeting
-      </Button>
-      <Dialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{open === "single" ? "New meeting" : "New weekly series"}</DialogTitle>
+            <DialogTitle>Create meeting</DialogTitle>
             <DialogDescription>
-              {open === "single"
-                ? "One meeting: an event, a training or a visitor day."
-                : "The same meeting every week. Weeks that already have one are skipped."}
+              The chapter meeting at its usual hall. One per date and time: a second at the same moment is refused.
             </DialogDescription>
           </DialogHeader>
-          {/* Keyed so closing and reopening starts from empty boxes again. */}
-          {open ? <MeetingForm key={open} mode={open} venues={venues} initial={blank} onDone={() => setOpen(null)} /> : null}
+          {/* Unmounted while closed, so reopening starts from empty boxes again. */}
+          {open ? <MeetingForm mode="create" venues={venues} initial={blank} onDone={() => setOpen(false)} /> : null}
         </DialogContent>
       </Dialog>
     </>

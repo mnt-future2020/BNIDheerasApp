@@ -16,14 +16,24 @@ const ALL = "__all";
 export function MonthFilter({
   value,
   months,
-  href,
+  path,
+  param = "m",
+  params,
   allLabel,
   className,
 }: {
   /** The month being shown, or "" when the list isn't narrowed. */
   value: string;
   months: { key: string; label: string }[];
-  href: (month: string) => string;
+  /** Where the list lives, e.g. "/admin/calendar". */
+  path: string;
+  /** The query key the page reads the month from. */
+  param?: string;
+  /**
+   * Other query values to keep, e.g. the tab or a kind filter. Pagination is
+   * deliberately not among them: a narrowed list starts at page one.
+   */
+  params?: Record<string, string | undefined>;
   /** Given, the list can be widened back to every month. */
   allLabel?: string;
   className?: string;
@@ -32,8 +42,17 @@ export function MonthFilter({
   const options = allLabel ? [{ key: ALL, label: allLabel }, ...months] : months;
   // One month to choose from is not a choice.
   if (options.length < 2) return null;
+  // Built here rather than passed in: a function can't cross from a Server
+  // Component to this one.
+  const hrefFor = (month: string) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params ?? {})) if (v) qs.set(k, v);
+    if (month) qs.set(param, month);
+    const s = qs.toString();
+    return s ? `${path}?${s}` : path;
+  };
   return (
-    <Select value={value || ALL} onValueChange={(key) => router.push(href(key === ALL ? "" : key))}>
+    <Select value={value || ALL} onValueChange={(key) => router.push(hrefFor(key === ALL ? "" : key))}>
       <SelectTrigger aria-label="Month" className={cn("w-full min-w-40 flex-1 sm:max-w-52", className)}>
         <SelectValue />
       </SelectTrigger>
