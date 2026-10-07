@@ -20,7 +20,7 @@ const LINKS: { href: string; title: string; text: string; icon: React.ElementTyp
   // No "Device approvals" or "Venues" tile: a phone is approved from the
   // member's Action list on Members ("Phone waiting" gathers them), and a venue
   // is added from the Venue field while scheduling the meeting that needs it.
-  { href: "/admin/meetings", title: "Meetings", text: "Schedule weekly meetings and times", icon: CalendarCogIcon, caps: ["meetings.manage"] },
+  { href: "/admin/meetings", title: "Meetings", text: "Meetings, PALMS, visitors and venues", icon: CalendarCogIcon, caps: ["meetings.manage", "meetings.remove", "attendance.manual", "kiosk.run", "palms.view", "meeting.finalize", "visitors.manage"] },
   // No tile for Attendance & PALMS, Medical leave or the LVH desk: a meeting's
   // PALMS, summary, follow-ups, leave decisions and venue QR all hang off the
   // meeting itself, under Meetings.

@@ -30,7 +30,7 @@ export default async function MeetingsAdminPage({ searchParams }: PageProps<"/ad
   // The LVH team and the Attendance Coordinator come here for today's meeting —
   // to enter PALMS, take visitor details or open the live board. Only
   // meetings.manage sees the create, cancel and delete controls.
-  const me = await requireAnyCapPage(["meetings.manage", "attendance.manual", "kiosk.run", "palms.view", "meeting.finalize"]);
+  const me = await requireAnyCapPage(["meetings.manage", "meetings.remove", "attendance.manual", "kiosk.run", "palms.view", "meeting.finalize", "visitors.manage"]);
   const canManage = me.caps.has("meetings.manage");
   const canRemove = me.caps.has("meetings.remove");
   const sp = await searchParams;

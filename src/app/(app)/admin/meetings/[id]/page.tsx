@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "Edit meeting" };
 export default async function EditMeetingPage({ params }: PageProps<"/admin/meetings/[id]">) {
   // Reached by the LVH team and the Attendance Coordinator for the buttons at
   // the top; editing, cancelling and deleting stay with meetings.manage.
-  const me = await requireAnyCapPage(["meetings.manage", "attendance.manual", "kiosk.run", "palms.view", "meeting.finalize"]);
+  const me = await requireAnyCapPage(["meetings.manage", "meetings.remove", "attendance.manual", "kiosk.run", "palms.view", "meeting.finalize", "visitors.manage"]);
   const canManage = me.caps.has("meetings.manage");
   // Calling a meeting off, or putting it back, is not the same job as editing one.
   const canRemove = me.caps.has("meetings.remove");
