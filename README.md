@@ -82,9 +82,10 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
 3. **Email (optional):** sign-in doesn't need email. Only if you want email copies of alerts and the Monday report, set `RESEND_API_KEY` and `EMAIL_FROM`.
 4. **The host:** point it at the repository and add the variables from [.env.example](.env.example).
    - `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` are **required**: nothing else tells the app which origin it is served from.
-   - Build command: `npm run build:deploy` — it applies any pending database migrations, then builds.
-     - That build passes `--webpack`, because Next's native SWC/Turbopack binaries need glibc 2.29+ and some shared hosts are older. On a modern host, `npm run build` is faster.
+   - Build command: `npm run build` — it applies any pending database migrations, then builds.
+     - It passes `--webpack`, because Next's native SWC/Turbopack binaries need glibc 2.29+ and some shared hosts are older. The command is written this way, rather than as a separate script, because hosts like Hostinger only offer `npm run build`. For a quick local build without migrations, use `npm run build:local`.
      - The build needs `devDependencies` (TypeScript, Tailwind, the React Compiler plugin, drizzle-kit), so don't install with `--omit=dev`.
+     - `DATABASE_URL` and `NEXT_PUBLIC_APP_URL` must be set at **build** time, not only at runtime.
    - Start command: `npm start`.
    - Weekly housekeeping: set `CRON_SECRET` and have the host's scheduler call the endpoint every Monday, e.g.
      `curl -H "Authorization: Bearer $CRON_SECRET" https://YOUR-APP-DOMAIN/api/cron/monday-report`.
@@ -120,9 +121,9 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
 | `npm run db:migrate` | Apply migrations to `DATABASE_URL` |
 | `npm run seed` | Demo data (local databases only) |
 | `npm test` | Unit tests (QR tokens, late rule, device signatures, distances, pagination, celebrations…) |
-| `npm run typecheck` / `npm run lint` / `npm run build` | Checks and production build |
-| `npm run build:webpack` | Production build without Turbopack, for hosts whose glibc is too old for Next's native binaries |
-| `npm run build:deploy` | What the host runs: migrations, then the webpack build |
+| `npm run typecheck` / `npm run lint` | Checks |
+| `npm run build` | What the host runs: migrations, then a webpack production build |
+| `npm run build:local` | Quick local production build — Turbopack, no migrations |
 
 ## Where things are
 
