@@ -1,0 +1,71 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { NavIcon } from "@/components/nav-icon";
+import { type NavItem, PRIMARY_NAV, SECONDARY_NAV, STAFF_NAV, visible } from "@/components/nav-items";
+// Loaded on every page so the browser's install offer is caught wherever it fires (Home shows the button).
+import "@/lib/install-app";
+import { cn } from "@/lib/utils";
+
+/** The bottom bar has no capability-gated tabs, so it only needs the member check. */
+const EMPTY_CAPS: ReadonlySet<string> = new Set();
+
+function isActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function BottomNav({ isChapterMember }: { isChapterMember: boolean }) {
+  const pathname = usePathname();
+  const items = PRIMARY_NAV.filter((i) => visible(i, EMPTY_CAPS, isChapterMember));
+  return (
+    <nav className="bottom-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur lg:hidden">
+      {/* The column count follows the list: an admin-only login has fewer tabs. */}
+      <ul className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {items.map((item) => {
+          const active = isActive(pathname, item.href);
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium",
+                  active ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <NavIcon name={item.icon} className={cn("size-5", item.icon === "scan" && "size-6")} />
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+export function DesktopNav({ caps, isChapterMember }: { caps: string[]; isChapterMember: boolean }) {
+  const pathname = usePathname();
+  const set = new Set(caps);
+  const items: NavItem[] = [
+    ...PRIMARY_NAV.filter((i) => i.href !== "/more"),
+    ...SECONDARY_NAV.filter((i) => ["/members", "/awards", "/feedback"].includes(i.href)),
+    ...STAFF_NAV,
+  ].filter((i) => visible(i, set, isChapterMember));
+  return (
+    <nav className="hidden items-center gap-1 lg:flex">
+      {items.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={cn(
+            "rounded-md px-2.5 py-1.5 text-sm font-medium",
+            isActive(pathname, item.href) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}

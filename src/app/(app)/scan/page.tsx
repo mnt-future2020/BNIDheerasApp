@@ -1,0 +1,39 @@
+import type { Metadata } from "next";
+import { PageContainer, PageHeader } from "@/components/page-header";
+import { getCurrentOrNextMeeting } from "@/lib/attendance/queries";
+import { getMemberDevices } from "@/lib/devices";
+import { requireMember } from "@/lib/session";
+import { formatDateTime } from "@/lib/time";
+import { ScanClient } from "./scan-client";
+
+export const metadata: Metadata = { title: "Check in" };
+
+export default async function ScanPage() {
+  const me = await requireMember();
+  if (!me.isChapterMember) {
+    return (
+      <PageContainer>
+        <PageHeader title="Check in" />
+        <p className="rounded-lg bg-muted p-4 text-sm">
+          This is an admin account, not a chapter member, so it doesn&apos;t check in or appear in attendance.
+        </p>
+      </PageContainer>
+    );
+  }
+  const [devices, meeting] = await Promise.all([getMemberDevices(me.id), getCurrentOrNextMeeting()]);
+  const isDev = process.env.NODE_ENV === "development";
+
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Check in"
+        description={
+          meeting
+            ? `${meeting.title} · ${formatDateTime(meeting.startsAt)}${meeting.venue ? ` · ${meeting.venue.name}` : ""}`
+            : "No meeting is scheduled."
+        }
+      />
+      <ScanClient memberId={me.id} devices={devices} isDev={isDev} />
+    </PageContainer>
+  );
+}

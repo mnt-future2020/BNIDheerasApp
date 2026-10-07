@@ -1,0 +1,168 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import { clearAwards, saveAwards, unpublishAwards } from "@/actions/awards";
+import { ConfirmButton } from "@/components/confirm-button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+type Entry = { awardTypeId: string; memberId: string; note: string; value: string; published?: boolean };
+type AwardTypeOption = { id: string; name: string; noteEnabled: boolean; valueEnabled: boolean; valueHint: string | null };
+const NONE = "__none";
+
+export function AwardsEditor({
+  meetingId,
+  types,
+  members,
+  initial,
+}: {
+  meetingId: string;
+  types: AwardTypeOption[];
+  members: { id: string; name: string }[];
+  initial: Entry[];
+}) {
+  const router = useRouter();
+  const [entries, setEntries] = useState<Entry[]>(
+    types.map((t) => initial.find((i) => i.awardTypeId === t.id) ?? { awardTypeId: t.id, memberId: "", note: "", value: "" }),
+  );
+  const [pending, start] = useTransition();
+  const published = initial.some((i) => i.published);
+  const update = (typeId: string, patch: Partial<Entry>) =>
+    setEntries((list) => list.map((e) => (e.awardTypeId === typeId ? { ...e, ...patch } : e)));
+
+  const save = (publish: boolean) =>
+    saveAwards(
+      meetingId,
+      entries.map(({ awardTypeId, memberId, note, value }) => ({ awardTypeId, memberId, note, value })),
+      publish,
+    );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {published ? <Badge>Published</Badge> : <Badge variant="outline">Not published</Badge>}
+        {/* Beside the badge: taking it back shouldn't need a scroll to the bottom. */}
+        {published ? (
+          <ConfirmButton
+            label="Unpublish"
+            title="Unpublish this week's recognitions?"
+            description="Members won't see them until you publish again."
+            success="Unpublished."
+            action={() => unpublishAwards(meetingId)}
+            variant="outline"
+          />
+        ) : null}
+      </div>
+
+      {types.map((t) => {
+        const e = entries.find((x) => x.awardTypeId === t.id)!;
+        const extras = Number(t.noteEnabled) + Number(t.valueEnabled);
+        return (
+          <Card key={t.id}>
+            <CardContent
+              className={cn(
+                "grid gap-3 py-4",
+                extras === 2 ? "sm:grid-cols-[1fr_1fr_160px]" : extras === 1 ? "sm:grid-cols-2" : "sm:grid-cols-1",
+              )}
+            >
+              <div className="font-semibold sm:col-span-full">{t.name}</div>
+              <Select value={e.memberId || NONE} onValueChange={(v) => update(t.id, { memberId: v === NONE ? "" : v })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose member" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>No winner this week</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {t.noteEnabled ? (
+                <Input placeholder="Note (optional)" value={e.note} onChange={(ev) => update(t.id, { note: ev.target.value })} />
+              ) : null}
+              {t.valueEnabled ? (
+                <Input
+                  placeholder={t.valueHint ?? "Value"}
+                  value={e.value}
+                  onChange={(ev) => update(t.id, { value: ev.target.value })}
+                />
+              ) : null}
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      <div className="flex flex-wrap gap-2">
+        {published ? (
+          <>
+            <Button
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const res = await save(true);
+                  if (!res.ok) return void toast.error(res.error);
+                  toast.success("Saved. Anyone newly added has been notified.");
+                  router.refresh();
+                })
+              }
+            >
+              Save changes
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const res = await save(false);
+                  if (!res.ok) return void toast.error(res.error);
+                  toast.success("Draft saved.");
+                  router.refresh();
+                })
+              }
+            >
+              Save draft
+            </Button>
+            <ConfirmButton
+              label="Publish"
+              title="Publish this week's recognitions?"
+              description="Everyone can see them on the Recognitions page."
+              success="Published. Winners have been notified."
+              action={() => save(true)}
+              variant="default"
+              size="default"
+              destructive={false}
+            />
+          </>
+        )}
+        {initial.length ? (
+          <ConfirmButton
+            label="Clear all"
+            title="Clear this meeting's recognitions?"
+            description={
+              <>
+                All saved winners for this meeting are removed
+                {published ? ", and they disappear from the Recognitions page and the leaderboard" : ""}. The meeting itself
+                stays, so you can pick winners again.
+              </>
+            }
+            success="Cleared. The meeting is still here."
+            action={() => clearAwards(meetingId)}
+            variant="outline"
+            size="default"
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "meeting" ADD COLUMN "checkin_closes_at" timestamp with time zone;
