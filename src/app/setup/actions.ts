@@ -49,7 +49,7 @@ export async function completeSetup(_prev: unknown, formData: FormData): Promise
 }
 
 /**
- * Break-glass access: with SETUP_TOKEN set in Vercel, an admin or the current
+ * Break-glass access: with SETUP_TOKEN set in the environment, an admin or the current
  * President who can't sign in sets a new password here. Remove SETUP_TOKEN
  * again afterwards.
  */

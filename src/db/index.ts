@@ -1,4 +1,3 @@
-import { attachDatabasePool } from "@vercel/functions";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
@@ -28,7 +27,6 @@ function createPool() {
     ssl: isLocal ? false : undefined,
   });
   pool.on("error", (err) => console.error("[db] idle client error", err));
-  if (process.env.VERCEL) attachDatabasePool(pool);
   return pool;
 }
 

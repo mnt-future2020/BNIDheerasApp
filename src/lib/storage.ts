@@ -75,7 +75,7 @@ export async function putImage(key: string, body: Uint8Array, contentType: Image
     );
     return;
   }
-  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production") {
     throw new Error("Image storage is not configured (set the STORAGE_* environment variables).");
   }
   const path = join(LOCAL_UPLOAD_ROOT, key);

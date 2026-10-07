@@ -19,7 +19,7 @@ The design, loophole list and decisions are in [docs/PLAN.md](docs/PLAN.md).
 | Images | Neon Object Storage, S3-compatible, in the same Neon project (Cloudflare R2 also works). Images are compressed to WebP in the browser and checked by the server. |
 | Maps | Leaflet + OpenStreetMap (free), address search via Nominatim |
 | Email (optional) | Resend, only for email copies of alerts; everything also appears in-app |
-| Hosting | Vercel (functions in `sin1`, next to Neon Singapore) |
+| Hosting | Any Node.js host. Put it in or near Singapore, next to the Neon database. |
 
 ## Run it locally
 
@@ -53,7 +53,7 @@ npm run dev                     # http://localhost:3000
   - A Head Table member can't reset someone who has more access than they do. For example, a VP can't reset the President or the Secretary, because that would let them sign in as that person. Only the President or an admin can reset those.
 - **Guessing limits:** 8 wrong passwords for one login ID, or 30 from one network, in 15 minutes block further tries for 15 minutes.
 - **Emergency:** if no admin or President can sign in:
-  1. Set `SETUP_TOKEN` in Vercel.
+  1. Set `SETUP_TOKEN` in the host's environment variables.
   2. Open `/setup` and use **Admin recovery** to set a new password.
   3. Remove the token afterwards.
 - **Without demo data:** open `/setup`, enter `SETUP_TOKEN` and create the first admin with their own password.
@@ -61,7 +61,7 @@ npm run dev                     # http://localhost:3000
 
 ### Testing on a real phone
 
-The camera, the device key (WebCrypto) and GPS for Near me only work over HTTPS. The easiest way is a Vercel preview deployment.
+The camera, the device key (WebCrypto) and GPS for Near me only work over HTTPS. The easiest way is a staging deployment, or an HTTPS tunnel to the dev server (`npx localtunnel --port 3000`).
 
 On iPhone, use **Share → Add to Home Screen** first, then register the phone from the installed app. iPhone keeps the Home-Screen app's storage separate from Safari's.
 
@@ -80,11 +80,14 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
    - Check them before deploying: put the values in `.env` and run `node scripts/check-storage.mjs <bucket>`.
    - No CORS setup is needed: uploads (`/api/uploads`) and reads (`/api/media`) both go through the app, which checks each upload is a real image.
 3. **Email (optional):** sign-in doesn't need email. Only if you want email copies of alerts and the Monday report, set `RESEND_API_KEY` and `EMAIL_FROM`.
-4. **Vercel:** import the repository and add the variables from [.env.example](.env.example).
-   - `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` are optional on Vercel; they default to the production domain.
-   - Every build applies any pending database migrations (`vercel-build`).
-   - [vercel.json](vercel.json) pins functions to `sin1` and schedules the Monday attendance report (09:00 IST). Set `CRON_SECRET`.
-   - The Hobby (free) plan is meant for non-commercial use. Check Vercel's terms for a chapter app.
+4. **The host:** point it at the repository and add the variables from [.env.example](.env.example).
+   - `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` are **required**: nothing else tells the app which origin it is served from.
+   - Build command: `npm run build:deploy` — it applies any pending database migrations, then builds.
+     - That build passes `--webpack`, because Next's native SWC/Turbopack binaries need glibc 2.29+ and some shared hosts are older. On a modern host, `npm run build` is faster.
+     - The build needs `devDependencies` (TypeScript, Tailwind, the React Compiler plugin, drizzle-kit), so don't install with `--omit=dev`.
+   - Start command: `npm start`.
+   - Weekly housekeeping: set `CRON_SECRET` and have the host's scheduler call the endpoint every Monday, e.g.
+     `curl -H "Authorization: Bearer $CRON_SECRET" https://YOUR-APP-DOMAIN/api/cron/monday-report`.
 5. **First admin:** with `SETUP_TOKEN` set, open `https://YOUR-APP-DOMAIN/setup` and create the admin with their own password. Afterwards, remove `SETUP_TOKEN`.
 6. **Optional:** `NOMINATIM_EMAIL`, a contact address for OpenStreetMap's address search.
 
@@ -118,6 +121,8 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
 | `npm run seed` | Demo data (local databases only) |
 | `npm test` | Unit tests (QR tokens, late rule, device signatures, distances, pagination, celebrations…) |
 | `npm run typecheck` / `npm run lint` / `npm run build` | Checks and production build |
+| `npm run build:webpack` | Production build without Turbopack, for hosts whose glibc is too old for Next's native binaries |
+| `npm run build:deploy` | What the host runs: migrations, then the webpack build |
 
 ## Where things are
 

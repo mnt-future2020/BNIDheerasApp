@@ -12,7 +12,8 @@ function authorized(req: Request): boolean {
 }
 
 /**
- * Weekly housekeeping (Vercel Cron, Mondays). It used to send the attendance
+ * Weekly housekeeping, called by whatever scheduler the host runs on Mondays
+ * with `Authorization: Bearer $CRON_SECRET`. It used to send the attendance
  * report as a notification; with notifications gone it only clears out the
  * login-attempt log, which would otherwise grow for ever.
  */

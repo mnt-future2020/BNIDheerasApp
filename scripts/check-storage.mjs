@@ -1,4 +1,4 @@
-// Checks object-storage credentials before putting them in Vercel:
+// Checks object-storage credentials before putting them in the host's settings:
 // upload a small text file, read it back, print a presigned link, report
 // whether the bucket is private (recommended), then delete the test file.
 //

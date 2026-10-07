@@ -4,14 +4,14 @@ import { defineConfig } from "drizzle-kit";
 try {
   process.loadEnvFile(".env.local");
 } catch {
-  // CI / Vercel provide DATABASE_URL directly.
+  // CI and the host provide DATABASE_URL directly.
 }
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dialect: "postgresql",
-  // Migrations prefer Neon's direct connection (set by the Vercel–Neon integration).
+  // Migrations prefer Neon's direct (unpooled) connection when one is configured.
   dbCredentials: { url: (process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL)! },
   strict: true,
   verbose: true,
