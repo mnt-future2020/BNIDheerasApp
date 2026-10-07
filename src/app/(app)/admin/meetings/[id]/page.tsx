@@ -69,7 +69,6 @@ export default async function EditMeetingPage({ params }: PageProps<"/admin/meet
                 description="It goes back on the schedule and check-in opens as usual."
                 success="Meeting restored."
                 action={restoreMeeting.bind(null, m.id)}
-                variant="outline"
                 size="default"
                 destructive={false}
               />

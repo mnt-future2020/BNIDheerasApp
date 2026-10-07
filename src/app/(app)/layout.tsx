@@ -4,12 +4,13 @@ import { BrandLogo } from "@/components/brand-logo";
 import { TenureSwitcher } from "@/components/tenure-switcher";
 import { UserMenu } from "@/components/user-menu";
 import { requireMember } from "@/lib/session";
+import { accountName } from "@/lib/settings";
 import { publicUrl } from "@/lib/storage";
 import { listTenures, selectedTenure } from "@/lib/tenure";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const me = await requireMember();
-  const [tenures, tenure] = await Promise.all([listTenures(), selectedTenure()]);
+  const [tenures, tenure, name] = await Promise.all([listTenures(), selectedTenure(), accountName(me)]);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -22,9 +23,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <DesktopNav caps={[...me.caps]} isChapterMember={me.isChapterMember} />
           </div>
           <TenureSwitcher tenures={tenures} selected={tenure?.id ?? ""} />
-          {/* The app-admin account isn't a person, so it wears the chapter's badge. */}
+          {/* The app-admin account isn't a person, so it wears the chapter's
+              badge and the Chapter Admin's name from Settings. */}
           <UserMenu
-            name={me.fullName}
+            name={name}
             email={me.email}
             photoUrl={publicUrl(me.photoKey) ?? (me.isChapterMember ? null : "/images/bni-avatar.webp")}
             isChapterMember={me.isChapterMember}

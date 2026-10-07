@@ -28,10 +28,14 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/* No height on <html>/<body>: a 100%-height document makes mobile Safari measure
+   `position: fixed` against the document instead of the viewport, so the bottom
+   navigation only snaps into place after a scroll. The app shell sets its own
+   min-h-dvh, which is all the full-height we need. */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${poppins.variable} h-full antialiased`}>
-      <body className="min-h-full bg-background">
+    <html lang="en" className={`${poppins.variable} antialiased`}>
+      <body className="bg-background">
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster theme="light" position="top-center" richColors closeButton />
       </body>

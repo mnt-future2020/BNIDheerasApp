@@ -9,33 +9,40 @@ import { member } from "@/db/schema";
 import { getCelebrations, isToday, MONTH_NAMES, today } from "@/lib/celebrations";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireMember } from "@/lib/session";
+import { selectedTenure, tenureMonths } from "@/lib/tenure";
 
 export const metadata: Metadata = { title: "Celebrations" };
 
 const MONTHS_PER_PAGE = 3;
 
-/** Every member's birthday and wedding anniversary, three months a page from this month. */
+/** Birthdays and anniversaries falling inside the tenure picked at the top of the page. */
 export default async function CelebrationsPage({ searchParams }: PageProps<"/celebrations">) {
   await requireMember();
   const now = today();
-  const [all, [{ members }]] = await Promise.all([
+  const [all, [{ members }], tenure] = await Promise.all([
     getCelebrations(),
     db
       .select({ members: count() })
       .from(member)
       .where(and(eq(member.status, "active"), eq(member.isChapterMember, true))),
+    selectedTenure(),
   ]);
   const withBirthday = new Set(all.filter((c) => c.kind === "birthday").map((c) => c.memberId)).size;
-  const year = Array.from({ length: 12 }, (_, i) => ((now.month - 1 + i) % 12) + 1);
-  const { page, pageCount, offset } = paginate(pageFromParam((await searchParams).page), year.length, MONTHS_PER_PAGE);
-  const months = year.slice(offset, offset + MONTHS_PER_PAGE);
+  // Without a tenure to go by, fall back to the twelve months from this one.
+  const span = tenure ? tenureMonths(tenure) : Array.from({ length: 12 }, (_, i) => ((now.month - 1 + i) % 12) + 1);
+  const { page, pageCount, offset } = paginate(pageFromParam((await searchParams).page), span.length, MONTHS_PER_PAGE);
+  const months = span.slice(offset, offset + MONTHS_PER_PAGE);
 
   return (
     <PageContainer>
       <PageHeader
         title="Celebrations"
         back={{ href: "/", label: "Home" }}
-        description={`${withBirthday} of ${members} members have added their birthday in My profile.`}
+        description={
+          tenure
+            ? `${tenure.name}. ${withBirthday} of ${members} members have added their birthday in My profile.`
+            : `${withBirthday} of ${members} members have added their birthday in My profile.`
+        }
       />
       <div className="space-y-4">
         {months.map((month) => {

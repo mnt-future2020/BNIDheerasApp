@@ -82,6 +82,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Nothing in the app is meant to scroll sideways — wide tables carry their
+       own overflow-x-auto. Without this, one stray wide element widens the
+       layout viewport and the fixed bottom bar is centred half off-screen.
+       `clip` rather than `hidden`: it doesn't make body a scroll container,
+       so the sticky header keeps working. */
+    overflow-x: clip;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {

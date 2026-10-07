@@ -16,6 +16,7 @@ import { checkinClosingTime, checkinWindow, planDeadline } from "@/lib/attendanc
 import { type Celebration, getCelebrations, isToday, MONTH_NAMES, nextMonth, today } from "@/lib/celebrations";
 import { getMemberDevices } from "@/lib/devices";
 import { requireMember } from "@/lib/session";
+import { accountName } from "@/lib/settings";
 import { publicUrl } from "@/lib/storage";
 import { formatDate, formatDateTime, formatShortDate, formatTime } from "@/lib/time";
 import { CancelPlanButton, PlanDialog } from "./plan-dialog";
@@ -46,8 +47,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   // Until this moment a member can still cancel a plan or give a reason; the
   // server enforces the same deadline, so the buttons must agree with it.
   const canPlan = next ? now < planDeadline(next) : false;
-  // Admin-only accounts have names like "BNI Dheeras Admin": "Hello, BNI" reads oddly.
-  const firstName = me.isChapterMember ? me.fullName.split(" ")[0] : me.fullName;
+  // The admin-only account greets by the Chapter Admin's name from Settings,
+  // in full: it isn't a person's record, so "Hello, Chapter" reads oddly.
+  const firstName = me.isChapterMember ? me.fullName.split(" ")[0] : await accountName(me);
 
   return (
     <PageContainer>
@@ -152,7 +154,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <TrophyIcon className="size-4 text-primary" /> Recognitions · {formatShortDate(winners.date)}
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
+            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {winners.rows.map((w) => (
                 <div key={w.award} className="flex items-center gap-3">
                   <MemberAvatar name={w.name} src={publicUrl(w.photoKey)} />

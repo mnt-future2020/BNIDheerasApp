@@ -29,7 +29,7 @@ export function ConfirmButton({
   confirmLabel,
   success,
   action,
-  variant = "ghost",
+  variant,
   size = "sm",
   destructive = true,
   redirectTo,
@@ -48,6 +48,7 @@ export function ConfirmButton({
   action: (reason?: string) => Promise<Result>;
   /** Asks for a reason first (this is the field's placeholder); confirm stays off until one is typed. */
   requireReason?: string;
+  /** Left out, the action decides: destructive ones are red, the rest outlined. */
   variant?: "ghost" | "outline" | "destructive" | "default";
   size?: "sm" | "default" | "icon-sm" | "icon";
   destructive?: boolean;
@@ -62,11 +63,14 @@ export function ConfirmButton({
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
+  // One rule for the whole app: anything that destroys or withdraws something
+  // wears the destructive tint, anything else is a plain outlined button.
+  const look = variant ?? (destructive ? "destructive" : "outline");
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button
-          variant={variant}
+          variant={look}
           size={size}
           disabled={pending}
           className={className}

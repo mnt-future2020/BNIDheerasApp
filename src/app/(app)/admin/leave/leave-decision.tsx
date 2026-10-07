@@ -16,7 +16,6 @@ export function LeaveDecision({ id, name }: { id: string; name: string }) {
         description="If they don't attend, it counts as an absence. They're notified."
         success="Rejected."
         action={() => decideLeave(id, false)}
-        variant="outline"
         size="default"
       />
       <Button

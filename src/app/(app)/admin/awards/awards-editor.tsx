@@ -55,7 +55,6 @@ export function AwardsEditor({
             description="Members won't see them until you publish again."
             success="Unpublished."
             action={() => unpublishAwards(meetingId)}
-            variant="outline"
           />
         ) : null}
       </div>
@@ -158,7 +157,6 @@ export function AwardsEditor({
             }
             success="Cleared. The meeting is still here."
             action={() => clearAwards(meetingId)}
-            variant="outline"
             size="default"
           />
         ) : null}

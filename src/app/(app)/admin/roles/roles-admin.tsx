@@ -131,10 +131,12 @@ export function RolesAdmin({
                   {holders.map((h) => (
                     <Badge key={h.id} variant="secondary" className="gap-0.5 pr-0.5">
                       {nameOf(h.memberId)}
+                      {/* Plain, not the usual red: inside a badge it would be a block of colour. */}
                       <ConfirmButton
                         label=""
                         icon={<XIcon className="size-3" />}
                         ariaLabel={`Remove ${nameOf(h.memberId)}`}
+                        variant="ghost"
                         className="size-5 p-0"
                         title={`Remove ${nameOf(h.memberId)} as ${r.label}?`}
                         description="Their permissions for this role end right away."

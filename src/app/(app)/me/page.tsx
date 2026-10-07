@@ -11,6 +11,7 @@ import { memberLocation, memberProfile } from "@/db/schema";
 import { getMemberDevices } from "@/lib/devices";
 import { ROLES } from "@/lib/permissions";
 import { requireMember } from "@/lib/session";
+import { accountName } from "@/lib/settings";
 import { publicUrl } from "@/lib/storage";
 import { ChangePasswordForm } from "./change-password-form";
 import { ProfileForm } from "./profile-form";
@@ -24,7 +25,7 @@ export default async function MePage() {
   if (!me.isChapterMember) {
     return (
       <PageContainer>
-        <PageHeader title="Account" description={`${me.fullName} · ${me.email}`} />
+        <PageHeader title="Account" description={`${await accountName(me)} · ${me.email}`} />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Password</CardTitle>

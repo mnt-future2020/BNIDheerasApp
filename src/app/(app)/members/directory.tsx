@@ -35,7 +35,10 @@ export function Directory({ members }: { members: Row[] }) {
           }}
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* grid-cols-1 is not redundant: without it the one-column track is implicit
+          and sizes to min-content, which for truncated text is the whole name —
+          so a long business name would widen the page instead of being cut. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {list.slice(pages.offset, pages.offset + PAGE_SIZE).map((m) => (
           <Link key={m.id} href={`/members/${m.id}`}>
             <Card className="h-full hover:border-primary/40">

@@ -1,5 +1,6 @@
 import "server-only";
 import { eq } from "drizzle-orm";
+import { cache } from "react";
 import { z } from "zod";
 import { db } from "@/db";
 import { setting } from "@/db/schema";
@@ -44,8 +45,16 @@ export const CHAPTER_ADMIN_KEY = "chapterAdmin";
  * belongs to the chapter, not to a tenure, so starting a new tenure carries it
  * over untouched — in practice it only changes every couple of years.
  */
-export function getChapterAdmin(): Promise<string> {
-  return readSetting(CHAPTER_ADMIN_KEY, z.string(), "");
+export const getChapterAdmin = cache((): Promise<string> => readSetting(CHAPTER_ADMIN_KEY, z.string(), ""));
+
+/**
+ * What to call the signed-in account. The admin-only login is not a person, and
+ * its record reads "Chapter Admin"; the chapter typed a real name in Settings,
+ * so that is the name to show. Falls back to the record while it's unset.
+ */
+export async function accountName(me: { fullName: string; isChapterMember: boolean }): Promise<string> {
+  if (me.isChapterMember) return me.fullName;
+  return (await getChapterAdmin()) || me.fullName;
 }
 
 export async function setChapterAdmin(value: string, actorId: string): Promise<void> {

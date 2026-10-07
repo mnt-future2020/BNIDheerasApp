@@ -53,7 +53,7 @@ export function FeedbackReview({ id, status, response }: { id: string; status: F
         {/* The decision already made is settled, so only the other one is live. */}
         <Button
           size="sm"
-          variant={status === "in_progress" ? "secondary" : "outline"}
+          variant={status === "in_progress" ? "default" : "outline"}
           disabled={pending || status === "in_progress"}
           onClick={() => decide("consider")}
         >
@@ -61,7 +61,7 @@ export function FeedbackReview({ id, status, response }: { id: string; status: F
         </Button>
         <Button
           size="sm"
-          variant={status === "done" ? "secondary" : "outline"}
+          variant={status === "done" ? "default" : "outline"}
           disabled={pending || status === "done"}
           onClick={() => decide("decline")}
         >

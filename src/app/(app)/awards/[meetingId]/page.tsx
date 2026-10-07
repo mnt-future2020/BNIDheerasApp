@@ -44,7 +44,7 @@ export default async function AwardWeekPage({ params }: PageProps<"/awards/[meet
         description={m.title}
       />
       <Card>
-        <CardContent className="grid gap-3 py-4 sm:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2">
           {rows.map((r) => (
             <Link key={r.award} href={`/members/${r.memberId}`} className="flex items-center gap-3">
               <MemberAvatar name={r.name} src={publicUrl(r.photoKey)} />

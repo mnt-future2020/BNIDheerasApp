@@ -33,7 +33,7 @@ export function DeleteMeetingButton({
   finalized,
   redirectTo,
   size = "default",
-  variant = "ghost",
+  variant = "destructive",
   iconOnly,
 }: {
   meetingId: string;
@@ -47,7 +47,7 @@ export function DeleteMeetingButton({
   finalized: boolean;
   redirectTo?: string;
   size?: "sm" | "default";
-  variant?: "ghost" | "outline";
+  variant?: "ghost" | "outline" | "destructive";
   /** Just the bin, for a row of meetings. */
   iconOnly?: boolean;
 }) {

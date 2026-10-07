@@ -33,8 +33,9 @@ export function UserMenu({
   }
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <MemberAvatar name={name} src={photoUrl} className="size-9" />
+      {/* The chapter's red ring marks this out as your own account, not just another face. */}
+      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+        <MemberAvatar name={name} src={photoUrl} className="size-9 ring-2 ring-primary" />
         <span className="sr-only">Account menu</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
