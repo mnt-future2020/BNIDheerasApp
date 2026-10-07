@@ -92,13 +92,15 @@ describe("late rule (exact start time unless grace is set)", () => {
     expect(checkinClosingTime({ endsAt, checkinClosesAt: null })).toBe(endsAt);
   });
 
-  it("closes reasons when check-in opens, and undo when the meeting starts", () => {
-    const checkinOpensAt = new Date(start.getTime() - 60 * 60_000);
-    // Saying "can't attend" has to be in before the doors open...
-    expect(planDeadline({ checkinOpensAt })).toBe(checkinOpensAt);
-    // ...but it can be taken back right up to the meeting itself.
+  it("takes reasons until the meeting ends, and undo only until it starts", () => {
+    const endsAt = new Date(start.getTime() + 90 * 60_000);
+    // Someone held up on the morning can still say so, mid-meeting...
+    expect(planDeadline({ endsAt })).toBe(endsAt);
+    expect(planDeadline({ endsAt }).getTime()).toBeGreaterThan(start.getTime());
+    // ...but taking it back closes when the meeting begins: by then the room
+    // is being counted, and the reason is part of that meeting's record.
     expect(undoDeadline({ startsAt: start })).toBe(start);
-    expect(undoDeadline({ startsAt: start }).getTime()).toBeGreaterThan(planDeadline({ checkinOpensAt }).getTime());
+    expect(undoDeadline({ startsAt: start }).getTime()).toBeLessThan(planDeadline({ endsAt }).getTime());
   });
 });
 

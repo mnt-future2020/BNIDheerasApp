@@ -14,7 +14,7 @@ import { assertAnyCap, assertCap, assertMember } from "@/lib/session";
 
 const TOO_LATE = "It's too late to change this for the meeting. Please speak to the LVH team or the Secretary.";
 
-/** Giving a reason or sending a substitute closes when check-in opens. */
+/** Giving a reason or sending a substitute stays open until the meeting ends. */
 async function openMeetingForMember(meetingId: string) {
   const m = await getMeetingWithVenue(meetingId);
   if (!m || m.status !== "scheduled") throw new UserError("This meeting isn't open.");

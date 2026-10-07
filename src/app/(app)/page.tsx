@@ -56,7 +56,7 @@ export default async function HomePage() {
   const windowState = next ? checkinWindow(now, next.checkinOpensAt, checkinClosingTime(next)) : null;
   // Two deadlines, both enforced on the server as well, so the buttons can
   // never offer something the action will refuse: a reason has to be in before
-  // check-in opens, and it can be taken back until the meeting starts.
+  // the meeting ends, and it can be taken back until the meeting starts.
   const canPlan = next ? now < planDeadline(next) : false;
   const canUndo = next ? now < undoDeadline(next) : false;
   // What they already said, if anything — shown instead of asking again.

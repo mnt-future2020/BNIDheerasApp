@@ -29,11 +29,12 @@ export function checkinClosingTime(m: { checkinClosesAt: Date | null; endsAt: Da
 
 /**
  * A member's last chance to say they can't attend, or to send a substitute.
- * Check-in opening is the cut-off: from that moment the room is being counted,
- * and the Head Table is working from a list that should no longer move.
+ * It stays open through the meeting itself: someone held up on the morning
+ * should be able to say so rather than go down as a silent absence. Once the
+ * meeting is over the record is PALMS, and the Head Table corrects it there.
  */
-export function planDeadline(m: { checkinOpensAt: Date }): Date {
-  return m.checkinOpensAt;
+export function planDeadline(m: { endsAt: Date }): Date {
+  return m.endsAt;
 }
 
 /**

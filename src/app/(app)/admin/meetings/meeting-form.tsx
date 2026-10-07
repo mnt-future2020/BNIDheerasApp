@@ -11,7 +11,6 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TimePicker } from "@/components/ui/time-picker";
 
 export type VenueOption = { id: string; name: string };
 
@@ -135,12 +134,14 @@ export function MeetingForm({
         <Field label="Meeting date">
           <DatePicker value={v.date} onChange={(x) => set("date", x)} />
         </Field>
+        {/* The browser's own time field: on a phone that is the OS wheel, which
+            beats anything built out of a popover and three scrolling columns. */}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Starts">
-            <TimePicker value={v.startTime} onChange={(x) => set("startTime", x)} placeholder="Start" />
+            <Input type="time" value={v.startTime} onChange={(e) => set("startTime", e.target.value)} />
           </Field>
           <Field label="Ends">
-            <TimePicker value={v.endTime} onChange={(x) => set("endTime", x)} placeholder="End" />
+            <Input type="time" value={v.endTime} onChange={(e) => set("endTime", e.target.value)} />
           </Field>
         </div>
         <Field label="Check-in opens (minutes before start)">
@@ -152,7 +153,7 @@ export function MeetingForm({
         </Field>
         <Field
           label="Check-in closes (minutes after start)"
-          hint="How long check-in stays open. Empty: it runs to the end of the meeting. Saying “can’t attend” closes earlier — when check-in opens."
+          hint="How long check-in stays open. Empty: it runs to the end of the meeting. Saying “can’t attend” stays open until the meeting ends."
         >
           <Input
             inputMode="numeric"

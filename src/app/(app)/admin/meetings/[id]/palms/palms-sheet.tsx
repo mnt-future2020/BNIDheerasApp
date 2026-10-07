@@ -40,6 +40,13 @@ const fromPlan = (m: Row): AttendanceStatus | "" =>
   m.substitute ? "S" : m.leave === "medical" ? "M" : m.leave === "informed" ? "A" : "";
 
 /**
+ * The letter a row starts on: what PALMS already records, else what the member
+ * told the chapter themselves. This is the mark "changed" is counted against —
+ * a substitute the member entered is not a change somebody made on this sheet.
+ */
+const seeded = (m: Row): AttendanceStatus | "" => m.status || fromPlan(m);
+
+/**
  * Two colours, because the sheet is read at a glance: green is everyone who was
  * in the room, blue is everyone who was not. Only the chosen letter is filled.
  */
@@ -72,7 +79,7 @@ export function PalmsSheet({
   // where the chapter left it — S, M or A. It is only a starting point:
   // tapping another letter wins, and nothing is saved until Save.
   const [picked, setPicked] = useState<Record<string, AttendanceStatus | "">>(
-    Object.fromEntries(members.map((m) => [m.id, m.status || fromPlan(m)])),
+    Object.fromEntries(members.map((m) => [m.id, seeded(m)])),
   );
   const [reason, setReason] = useState("");
   const [asking, setAsking] = useState(false);
@@ -80,7 +87,10 @@ export function PalmsSheet({
   const [away, setAway] = useState<{ row: Row; status: AttendanceStatus } | null>(null);
   const [pending, start] = useTransition();
 
-  const changed = members.filter((m) => picked[m.id] !== m.status).length;
+  // Against where the row started, not against what PALMS holds: otherwise a
+  // sheet opens already claiming changes nobody made. Re-read from the props
+  // each render, so a save settles the count back to nothing.
+  const changed = members.filter((m) => picked[m.id] !== seeded(m)).length;
   const tally = (s: AttendanceStatus) => members.filter((m) => picked[m.id] === s).length;
   // Everyone PALMS says attended, as the sheet stands right now.
   const inRoom = tally("P") + tally("L");
@@ -332,7 +342,7 @@ function AwayDialog({
               </>
             ) : (
               <span className="text-muted-foreground">
-                No substitute registered. The member can send one from their phone until check-in opens.
+                No substitute registered. The member can send one from their phone until the meeting ends.
               </span>
             )}
           </p>
