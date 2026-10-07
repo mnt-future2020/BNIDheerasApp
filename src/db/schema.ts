@@ -475,7 +475,13 @@ export const memberLocation = pgTable("member_location", {
  * add a type of their own from the calendar form; anything stored that isn't
  * one of these is shown as typed.
  */
-export const CALENDAR_KINDS = ["event", "training", "feature_presentation", "education_slot"] as const;
+export const CALENDAR_KINDS = ["feature_presentation", "education_slot"] as const;
+
+/**
+ * Dropped from the picker. Events saved earlier keep their type and still read
+ * as "Event" or "Training"; they just can't be chosen for a new one.
+ */
+export const RETIRED_CALENDAR_KINDS: readonly string[] = ["event", "training"];
 
 export const calendarEvent = pgTable(
   "calendar_event",

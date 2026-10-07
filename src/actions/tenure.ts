@@ -1,11 +1,11 @@
 "use server";
 
-import { and, lte, gte, ne } from "drizzle-orm";
+import { and, desc, eq, gte, lte, ne } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { db } from "@/db";
-import { term } from "@/db/schema";
+import { roleAssignment, term } from "@/db/schema";
 import { type ActionResult, runAction, UserError } from "@/lib/action";
 import { audit } from "@/lib/audit";
 import { assertCap, assertMember } from "@/lib/session";
@@ -32,7 +32,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
 
 /** Tenures run in whole months: Apr 2027 – Sep 2027, 1 April to 30 September. */
-export async function createTenure(input: z.input<typeof tenureSchema>): Promise<ActionResult<{ id: string; name: string }>> {
+export async function createTenure(input: z.input<typeof tenureSchema>): Promise<ActionResult<{ id: string; name: string; copied: number }>> {
   return runAction(async () => {
     const me = await assertCap("roles.manage");
     const d = tenureSchema.parse(input);
@@ -52,9 +52,37 @@ export async function createTenure(input: z.input<typeof tenureSchema>): Promise
     if (clash) throw new UserError(`Those months overlap the "${clash.name}" tenure.`);
 
     const [row] = await db.insert(term).values({ name, startsOn, endsOn }).returning({ id: term.id });
-    await audit({ actorId: me.id, action: "term.create", entity: "term", entityId: row.id, after: { name, startsOn, endsOn } });
+
+    // Roles are held per tenure, so a new one would start with nobody holding
+    // anything — the Head Table would lose their access the day it begins.
+    // The previous tenure's holders carry over; they can be changed after.
+    const [previous] = await db
+      .select({ id: term.id })
+      .from(term)
+      .where(lte(term.startsOn, startsOn))
+      .orderBy(desc(term.startsOn))
+      .limit(2)
+      .offset(1);
+    let copied = 0;
+    if (previous) {
+      const held = await db
+        .select({ role: roleAssignment.role, memberId: roleAssignment.memberId })
+        .from(roleAssignment)
+        .where(eq(roleAssignment.termId, previous.id));
+      if (held.length) {
+        await db.insert(roleAssignment).values(held.map((h) => ({ ...h, termId: row.id }))).onConflictDoNothing();
+        copied = held.length;
+      }
+    }
+    await audit({
+      actorId: me.id,
+      action: "term.create",
+      entity: "term",
+      entityId: row.id,
+      after: { name, startsOn, endsOn, rolesCopied: copied },
+    });
     refresh();
-    return { id: row.id, name };
+    return { id: row.id, name, copied };
   });
 }
 

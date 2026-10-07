@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte, lt } from "drizzle-orm";
 import type { Metadata } from "next";
 import { FeedbackStatusBadge } from "@/components/feedback-status";
 import { PageContainer, PageHeader } from "@/components/page-header";
@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { feedback } from "@/db/schema";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireMember } from "@/lib/session";
+import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDateTime } from "@/lib/time";
 import { FeedbackForm } from "./feedback-form";
 
@@ -17,7 +18,14 @@ const PAGE_SIZE = 10;
 
 export default async function FeedbackPage({ searchParams }: PageProps<"/feedback">) {
   const me = await requireMember();
-  const mine = eq(feedback.memberId, me.id);
+  // Only what this member raised during the tenure being looked at.
+  const tenure = await selectedTenure();
+  const range = tenure ? tenureRange(tenure) : null;
+  const mine = and(
+    eq(feedback.memberId, me.id),
+    range ? gte(feedback.createdAt, range.from) : undefined,
+    range ? lt(feedback.createdAt, range.to) : undefined,
+  );
   const [{ total }] = await db.select({ total: count() }).from(feedback).where(mine);
   const { page, pageCount, offset } = paginate(pageFromParam((await searchParams).page), total, PAGE_SIZE);
   const rows = await db.select().from(feedback).where(mine).orderBy(desc(feedback.createdAt)).limit(PAGE_SIZE).offset(offset);

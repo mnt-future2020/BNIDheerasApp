@@ -46,7 +46,7 @@ async function main() {
     .onConflictDoUpdate({ target: memberProfile.memberId, set: { anniversaryDate: anniversary } });
   console.log(`Celebrations: ${birthdays.map((b) => b.member.name).join(", ")} + ${members[3].name} (anniversary)`);
 
-  // 2. A phone waiting for approval → "Waiting for you: 1 device approval".
+  // 2. A phone waiting for approval → the members desk's "waiting" filter.
   const waiting = members[4] ?? members[0];
   await db.delete(device).where(and(eq(device.memberId, waiting.id), eq(device.status, "pending")));
   await db.insert(device).values({

@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
       <main className="pb-safe-nav flex-1 lg:pb-10">{children}</main>
-      <BottomNav isChapterMember={me.isChapterMember} />
+      <BottomNav caps={[...me.caps]} isChapterMember={me.isChapterMember} />
     </div>
   );
 }

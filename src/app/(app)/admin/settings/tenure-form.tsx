@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createTenure } from "@/actions/tenure";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,12 @@ const MONTHS = [
 ];
 
 /** A tenure runs in whole months, so it is picked as month + year at each end. */
-export function TenureForm({ tenures, thisYear }: { tenures: Tenure[]; thisYear: number }) {
+export function TenureForm({ tenures, today }: { tenures: Tenure[]; today: string }) {
   const router = useRouter();
   const [from, setFrom] = useState({ month: "", year: "" });
   const [to, setTo] = useState({ month: "", year: "" });
   const [pending, start] = useTransition();
+  const thisYear = Number(today.slice(0, 4));
   const years = Array.from({ length: 7 }, (_, i) => String(thisYear - 1 + i));
   const ready = from.month && from.year && to.month && to.year;
 
@@ -33,7 +35,11 @@ export function TenureForm({ tenures, thisYear }: { tenures: Tenure[]; thisYear:
         endYear: Number(to.year),
       });
       if (!res.ok) return void toast.error(res.error);
-      toast.success(`Tenure "${res.data.name}" created.`);
+      toast.success(
+        res.data.copied
+          ? `Tenure "${res.data.name}" created, with ${res.data.copied} role(s) carried over.`
+          : `Tenure "${res.data.name}" created.`,
+      );
       setFrom({ month: "", year: "" });
       setTo({ month: "", year: "" });
       router.refresh();
@@ -80,9 +86,16 @@ export function TenureForm({ tenures, thisYear }: { tenures: Tenure[]; thisYear:
       {tenures.length ? (
         <div className="divide-y rounded-xl border bg-card">
           {tenures.map((t) => (
-            <div key={t.id} className="px-4 py-2.5 text-sm">
-              <span className="font-medium">{t.name}</span>
-              <span className="text-muted-foreground"> · {t.startsOn} to {t.endsOn}</span>
+            <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
+              <span className="flex-1">
+                <span className="font-medium">{t.name}</span>
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {t.startsOn} to {t.endsOn}
+                </span>
+              </span>
+              {/* Today decides which one is live — there is nothing to tick. */}
+              {t.startsOn <= today && today <= t.endsOn ? <Badge>Current</Badge> : null}
             </div>
           ))}
         </div>

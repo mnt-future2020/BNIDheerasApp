@@ -7,9 +7,11 @@ import { toast } from "sonner";
 import { createMeeting, generateWeekly, updateMeeting } from "@/actions/meetings";
 import { saveVenue } from "@/actions/venues";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TimePicker } from "@/components/ui/time-picker";
 
 export type VenueOption = { id: string; name: string };
 
@@ -56,6 +58,9 @@ export function MeetingForm({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    // The pickers are buttons, not native fields, so the browser can't hold the
+    // form back on an empty one; the server says the same thing if this slips.
+    if (!v.date || !v.startTime || !v.endTime) return void toast.error("Pick the date, and the start and end time.");
     start(async () => {
       const common = {
         title: v.title,
@@ -136,14 +141,14 @@ export function MeetingForm({
           </Field>
         ) : null}
         <Field label={formMode === "weekly" ? "First meeting date" : "Date"}>
-          <Input type="date" value={v.date} onChange={(e) => set("date", e.target.value)} required />
+          <DatePicker value={v.date} onChange={(x) => set("date", x)} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Starts">
-            <Input type="time" value={v.startTime} onChange={(e) => set("startTime", e.target.value)} required />
+            <TimePicker value={v.startTime} onChange={(x) => set("startTime", x)} placeholder="Start" />
           </Field>
           <Field label="Ends">
-            <Input type="time" value={v.endTime} onChange={(e) => set("endTime", e.target.value)} required />
+            <TimePicker value={v.endTime} onChange={(x) => set("endTime", x)} placeholder="End" />
           </Field>
         </div>
         {formMode === "weekly" ? (

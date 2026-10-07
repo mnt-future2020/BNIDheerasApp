@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { award, awardType, calendarEvent, device, leaveRequest, meeting, member } from "@/db/schema";
+import { award, awardType, calendarEvent, leaveRequest, meeting, member } from "@/db/schema";
 import { getCurrentOrNextMeeting, memberMeetingState } from "@/lib/attendance/queries";
 import { checkinClosingTime, checkinWindow, planDeadline } from "@/lib/attendance/rules";
 import { type Celebration, getCelebrations, isToday, MONTH_NAMES, nextMonth, today } from "@/lib/celebrations";
@@ -36,9 +36,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const celebrations = await getCelebrations();
   const now0 = today();
 
-  const pendingDevices = me.caps.has("devices.approve")
-    ? (await db.select({ n: count() }).from(device).where(eq(device.status, "pending")))[0].n
-    : 0;
+  // No device-approval count here: pending phones are handled on the members desk.
   const pendingLeave = me.caps.has("leave.approve")
     ? (await db.select({ n: count() }).from(leaveRequest).where(eq(leaveRequest.status, "pending")))[0].n
     : 0;
@@ -61,20 +59,13 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       <div className="space-y-4">
         {/* Right under the greeting; shows only where the app can be installed. */}
         <InstallAppCard />
-        {pendingDevices > 0 || pendingLeave > 0 ? (
+        {pendingLeave > 0 ? (
           <Card className="border-primary/30 bg-primary/5">
             <CardContent className="flex flex-wrap gap-2 py-3 text-sm">
               <span className="font-medium">Waiting for you:</span>
-              {pendingDevices > 0 ? (
-                <Link className="text-primary underline" href="/admin/members?filter=waiting">
-                  {pendingDevices} device approval{pendingDevices > 1 ? "s" : ""}
-                </Link>
-              ) : null}
-              {pendingLeave > 0 ? (
-                <Link className="text-primary underline" href="/admin/leave">
-                  {pendingLeave} medical leave request{pendingLeave > 1 ? "s" : ""}
-                </Link>
-              ) : null}
+              <Link className="text-primary underline" href="/admin/leave">
+                {pendingLeave} medical leave request{pendingLeave > 1 ? "s" : ""}
+              </Link>
             </CardContent>
           </Card>
         ) : null}

@@ -1,8 +1,8 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { PageContainer, PageHeader } from "@/components/page-header";
 import { db } from "@/db";
-import { member, roleAssignment, term } from "@/db/schema";
+import { member, roleAssignment } from "@/db/schema";
 import {
   CAPABILITIES,
   capabilitiesFor,
@@ -13,18 +13,16 @@ import {
   roleConflict,
 } from "@/lib/permissions";
 import { requireCapPage } from "@/lib/session";
-import { toIstDateInput } from "@/lib/time";
+import { selectedTenure } from "@/lib/tenure";
 import { RolesAdmin } from "./roles-admin";
 
 export const metadata: Metadata = { title: "Roles & terms" };
 
-export default async function RolesPage({ searchParams }: PageProps<"/admin/roles">) {
-  const me = await requireCapPage("roles.manage");
-  const terms = await db.select().from(term).orderBy(desc(term.startsOn));
-  const today = toIstDateInput(new Date());
-  const { term: termParam } = await searchParams;
-  const selected =
-    terms.find((t) => t.id === termParam) ?? terms.find((t) => t.startsOn <= today && t.endsOn >= today) ?? terms[0];
+export default async function RolesPage() {
+  await requireCapPage("roles.manage");
+  // Who held which role in the tenure picked at the top of the page. Looking at
+  // an old tenure only shows it — nobody's permissions change with the view.
+  const selected = await selectedTenure();
   const members = await db
     .select({ id: member.id, fullName: member.fullName, isAdmin: member.isAdmin, isChapterMember: member.isChapterMember, status: member.status })
     .from(member)
@@ -41,10 +39,13 @@ export default async function RolesPage({ searchParams }: PageProps<"/admin/role
       <PageHeader
         title="Roles & terms"
         back={{ href: "/admin", label: "Admin" }}
-        description="Roles change every term. Permissions follow the role automatically."
+        description={
+          selected
+            ? `Who holds which role in ${selected.name}. Permissions follow the role automatically.`
+            : "Create a tenure in Settings first."
+        }
       />
       <RolesAdmin
-        meId={me.id}
         selectedTermId={selected?.id ?? null}
         members={members.filter((m) => m.status === "active")}
         assignments={assignments}

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { saveProfile, setMyImage } from "@/actions/profile";
 import { ImageUploader } from "@/components/image-uploader";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +40,8 @@ export function ProfileForm({
   const [pending, start] = useTransition();
   const set = (k: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setV((s) => ({ ...s, [k]: e.target.value }));
+  // The pickers hand back a value, not an event.
+  const setValue = (k: keyof Values) => (value: string) => setV((s) => ({ ...s, [k]: value }));
 
   return (
     <div className="space-y-5">
@@ -75,10 +78,23 @@ export function ProfileForm({
           <Input value={v.whatsapp} onChange={set("whatsapp")} inputMode="tel" />
         </Field>
         <Field label="Date of birth" hint="Members see the day and month on your profile; the year stays private.">
-          <Input type="date" value={v.dateOfBirth} onChange={set("dateOfBirth")} />
+          {/* Years back to 1930 in a dropdown: nobody should page through a calendar to reach their birth year. */}
+          <DatePicker
+            value={v.dateOfBirth}
+            onChange={setValue("dateOfBirth")}
+            captionLayout="dropdown"
+            startMonth={new Date(1930, 0)}
+            endMonth={endOfThisYear()}
+          />
         </Field>
         <Field label="Wedding anniversary" hint="Optional. Also shown as day and month on your profile.">
-          <Input type="date" value={v.anniversaryDate} onChange={set("anniversaryDate")} />
+          <DatePicker
+            value={v.anniversaryDate}
+            onChange={setValue("anniversaryDate")}
+            captionLayout="dropdown"
+            startMonth={new Date(1950, 0)}
+            endMonth={endOfThisYear()}
+          />
         </Field>
         <div className="sm:col-span-2">
           <Field label="Business presentation video link" hint="YouTube links play right on your profile.">
@@ -109,6 +125,9 @@ export function ProfileForm({
     </div>
   );
 }
+
+/** Only the calendar's year dropdown uses this, and it opens after mount, so the clock read is safe here. */
+const endOfThisYear = () => new Date(new Date().getFullYear(), 11);
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (

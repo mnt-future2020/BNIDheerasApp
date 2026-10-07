@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PageContainer, PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { db } from "@/db";
-import { CALENDAR_KINDS, calendarEvent, member } from "@/db/schema";
+import { CALENDAR_KINDS, calendarEvent, member, RETIRED_CALENDAR_KINDS } from "@/db/schema";
 import { kindLabel } from "@/lib/calendar";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireCapPage } from "@/lib/session";
@@ -34,17 +34,23 @@ export default async function CalendarAdminPage({ searchParams }: PageProps<"/ad
     // Types the chapter made up stay on the list as long as something uses one.
     db.selectDistinct({ kind: calendarEvent.kind }).from(calendarEvent),
   ]);
-  const kinds = [...new Set([...CALENDAR_KINDS, ...used.map((u) => u.kind)])];
+  const kinds = [
+    ...new Set([...CALENDAR_KINDS, ...used.map((u) => u.kind).filter((k) => !RETIRED_CALENDAR_KINDS.includes(k))]),
+  ];
 
   return (
     <PageContainer>
       <PageHeader
         title="Manage events"
         back={{ href: "/admin", label: "Admin" }}
-        description="Weekly meetings appear automatically. Add events, trainings and presentation slots here."
+        description="Weekly meetings appear automatically. Add feature presentations and education slots here."
       />
       <CalendarAdmin
         kinds={kinds.map((k) => ({ key: k, label: kindLabel(k) }))}
+        // Retired types are named too, so older events keep reading properly.
+        labels={Object.fromEntries(
+          [...new Set([...CALENDAR_KINDS, ...used.map((u) => u.kind)])].map((k) => [k, kindLabel(k)]),
+        )}
         members={members}
         events={events.map((e) => ({
           id: e.id,

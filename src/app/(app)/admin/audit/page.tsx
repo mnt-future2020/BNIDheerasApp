@@ -1,4 +1,4 @@
-import { count, desc, eq, like, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, like, lt, or } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageContainer, PageHeader } from "@/components/page-header";
@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { auditLog, member } from "@/db/schema";
 import { pageFromParam, pageHref, paginate } from "@/lib/pagination";
 import { requireCapPage } from "@/lib/session";
+import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDateTime } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Audit log" };
@@ -32,7 +33,14 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
   await requireCapPage("audit.view");
   const sp = await searchParams;
   const filter = FILTERS.find((x) => x.key === sp.f) ?? FILTERS[0];
-  const where = filter.prefixes.length ? or(...filter.prefixes.map((p) => like(auditLog.action, `${p}.%`))) : undefined;
+  // What was done during the tenure being looked at.
+  const tenure = await selectedTenure();
+  const range = tenure ? tenureRange(tenure) : null;
+  const where = and(
+    filter.prefixes.length ? or(...filter.prefixes.map((p) => like(auditLog.action, `${p}.%`))) : undefined,
+    range ? gte(auditLog.at, range.from) : undefined,
+    range ? lt(auditLog.at, range.to) : undefined,
+  );
   const [{ total }] = await db.select({ total: count() }).from(auditLog).where(where);
   const { page, pageCount, offset } = paginate(pageFromParam(sp.page), total, PAGE_SIZE);
   const rows = await db

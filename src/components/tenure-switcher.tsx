@@ -25,7 +25,7 @@ export function TenureSwitcher({ tenures, selected }: { tenures: Tenure[]; selec
         })
       }
     >
-      <SelectTrigger size="sm" className="w-auto max-w-52 gap-1 border-0 px-1.5 font-medium text-foreground shadow-none" aria-label="Tenure">
+      <SelectTrigger size="sm" className="w-auto max-w-52 gap-1 border-0 bg-transparent px-2 font-medium text-foreground shadow-none" aria-label="Tenure">
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">

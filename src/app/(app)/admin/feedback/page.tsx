@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 import type { Metadata } from "next";
 import { FeedbackStatusBadge } from "@/components/feedback-status";
 import { EmptyState, PageContainer, PageHeader } from "@/components/page-header";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { db } from "@/db";
 import { feedback, member } from "@/db/schema";
 import { requireCapPage } from "@/lib/session";
+import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDateTime } from "@/lib/time";
 import { FeedbackReview } from "./feedback-review";
 
@@ -16,10 +17,19 @@ const LIMIT = 200;
 
 export default async function FeedbackAdminPage() {
   await requireCapPage("feedback.manage");
+  // What members raised during the tenure being looked at.
+  const tenure = await selectedTenure();
+  const range = tenure ? tenureRange(tenure) : null;
   const rows = await db
     .select({ f: feedback, name: member.fullName })
     .from(feedback)
     .innerJoin(member, eq(member.id, feedback.memberId))
+    .where(
+      and(
+        range ? gte(feedback.createdAt, range.from) : undefined,
+        range ? lt(feedback.createdAt, range.to) : undefined,
+      ),
+    )
     .orderBy(desc(feedback.createdAt))
     .limit(LIMIT);
 

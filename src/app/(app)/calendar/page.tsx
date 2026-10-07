@@ -9,9 +9,15 @@ import { requireMember } from "@/lib/session";
 import { selectedTenure } from "@/lib/tenure";
 import { formatDate, formatMonth, formatTime, istToDate, toIstDateInput } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { MonthFilter } from "./month-filter";
+import { LinkSelect } from "./filters";
 
 export const metadata: Metadata = { title: "Events" };
+
+/**
+ * Radix Select has no empty value, so "no kind filter" needs a name. A chapter
+ * types its own kinds, so this one is spelled to never be one of them.
+ */
+const ALL_KINDS = "__all";
 
 const CUSTOM_COLOR = "bg-neutral-500 text-white";
 const KIND_COLORS: Record<string, string> = {
@@ -73,37 +79,37 @@ export default async function EventsPage({ searchParams }: PageProps<"/calendar"
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Events"
-        description="Meetings, events, trainings and presentation slots."
-        actions={
-          <Button asChild variant={onlyMine ? "default" : "outline"} size="sm">
-            <Link href={href({ mine: !onlyMine })}>My slots</Link>
-          </Button>
-        }
-      />
+      <PageHeader title="Events" description="Meetings, events, trainings and presentation slots." />
 
-      <div className="mb-3 space-y-2">
-        <MonthFilter
-          month={month}
-          months={months.map((key) => ({
+      {/* All three narrow the same list, so they sit on one row together rather
+          than "My slots" living apart up in the page actions. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <LinkSelect
+          label="Month"
+          value={month}
+          className="min-w-40 flex-1 sm:max-w-52"
+          options={months.map((key) => ({
             key,
             label: formatMonth(istToDate(`${key}-01`)),
             href: href({ m: key }),
           }))}
         />
         {kinds.length > 1 ? (
-          <div className="flex flex-wrap gap-1">
-            <Button asChild size="sm" variant={kindFilter === null ? "default" : "outline"}>
-              <Link href={href({ kind: null })}>All</Link>
-            </Button>
-            {kinds.map((k) => (
-              <Button key={k} asChild size="sm" variant={kindFilter === k ? "default" : "outline"}>
-                <Link href={href({ kind: k })}>{kindLabel(k)}</Link>
-              </Button>
-            ))}
-          </div>
+          <LinkSelect
+            label="Type"
+            value={kindFilter ?? ALL_KINDS}
+            className="min-w-40 flex-1 sm:max-w-52"
+            options={[
+              { key: ALL_KINDS, label: "All types", href: href({ kind: null }) },
+              ...kinds.map((k) => ({ key: k, label: kindLabel(k), href: href({ kind: k }) })),
+            ]}
+          />
         ) : null}
+        <Button asChild variant={onlyMine ? "default" : "outline"} className="shrink-0">
+          <Link href={href({ mine: !onlyMine })}>
+            <UserIcon /> My slots
+          </Link>
+        </Button>
       </div>
 
       {items.length === 0 ? (

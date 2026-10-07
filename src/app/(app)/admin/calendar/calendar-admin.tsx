@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteCalendarEvent, saveCalendarEvent } from "@/actions/calendar";
@@ -8,6 +8,7 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,10 +30,14 @@ const NONE = "__none";
 
 export function CalendarAdmin({
   kinds,
+  labels,
   members,
   events,
 }: {
+  /** The types that can be chosen for a new event. */
   kinds: { key: Kind; label: string }[];
+  /** Names for every type in use, including retired ones on older events. */
+  labels: Record<string, string>;
   members: { id: string; name: string }[];
   events: EventRow[];
 }) {
@@ -47,41 +52,65 @@ export function CalendarAdmin({
     location: "",
     memberId: "",
   };
-  const labelOf = (k: Kind) => kinds.find((x) => x.key === k)?.label ?? k;
+  const labelOf = (k: Kind) => labels[k] ?? kinds.find((x) => x.key === k)?.label ?? k;
 
   return (
     <div className="space-y-4">
       {/* The form takes the page over: the list underneath it only distracts. */}
       {editing ? (
-        <EventForm key={editing.id || "new"} row={editing} kinds={kinds} members={members} onDone={() => setEditing(null)} />
+        <EventForm
+          key={editing.id || "new"}
+          row={editing}
+          kinds={kinds}
+          labels={labels}
+          members={members}
+          onDone={() => setEditing(null)}
+        />
       ) : (
         <>
           <Button onClick={() => setEditing(blank)}>
-            <PlusIcon /> Add to calendar
+            <PlusIcon /> Create event
           </Button>
-          <div className="divide-y rounded-xl border">
-            {events.map((e) => (
-              <div key={e.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium">{e.title}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {shortDate(e.date)}
-                    {e.memberId ? ` · ${members.find((m) => m.id === e.memberId)?.name ?? ""}` : ""}
+          <div className="divide-y rounded-xl border bg-card">
+            {events.map((e) => {
+              const presenter = e.memberId ? (members.find((m) => m.id === e.memberId)?.name ?? "") : "";
+              return (
+                // Icons, not words, for Edit and Delete: on a phone the labels
+                // squeezed the title down to one word a line.
+                <div key={e.id} className="flex items-center gap-1 py-2 pr-2 pl-4 first:rounded-t-xl last:rounded-b-xl">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{e.title}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                      <Badge variant="secondary" className="font-normal">
+                        {labelOf(e.kind)}
+                      </Badge>
+                      <span>{shortDate(e.date)}</span>
+                      {presenter ? <span className="truncate">· {presenter}</span> : null}
+                    </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Edit ${e.title}`}
+                    title="Edit"
+                    onClick={() => setEditing(e)}
+                  >
+                    <PencilIcon />
+                  </Button>
+                  <ConfirmButton
+                    label="Delete"
+                    ariaLabel={`Delete ${e.title}`}
+                    icon={<Trash2Icon />}
+                    iconOnly
+                    size="icon-sm"
+                    title={`Delete "${e.title}"?`}
+                    description="It disappears from everyone's calendar."
+                    success="Deleted."
+                    action={() => deleteCalendarEvent(e.id)}
+                  />
                 </div>
-                <Badge variant="secondary">{labelOf(e.kind)}</Badge>
-                <Button variant="ghost" size="sm" onClick={() => setEditing(e)}>
-                  Edit
-                </Button>
-                <ConfirmButton
-                  label="Delete"
-                  title={`Delete "${e.title}"?`}
-                  description="It disappears from everyone's calendar."
-                  success="Deleted."
-                  action={() => deleteCalendarEvent(e.id)}
-                />
-              </div>
-            ))}
+              );
+            })}
             {events.length === 0 ? <div className="px-4 py-6 text-center text-sm text-muted-foreground">Nothing yet.</div> : null}
           </div>
         </>
@@ -93,11 +122,13 @@ export function CalendarAdmin({
 function EventForm({
   row,
   kinds,
+  labels,
   members,
   onDone,
 }: {
   row: EventRow;
   kinds: { key: Kind; label: string }[];
+  labels: Record<string, string>;
   members: { id: string; name: string }[];
   onDone: () => void;
 }) {
@@ -109,7 +140,14 @@ function EventForm({
   const [extra, setExtra] = useState<string[]>([]);
   const set = <K extends keyof EventRow>(k: K, value: EventRow[K]) => setV((s) => ({ ...s, [k]: value }));
   const isSlot = v.kind === "feature_presentation" || v.kind === "education_slot";
-  const options = [...kinds, ...extra.filter((e) => !kinds.some((k) => k.key === e)).map((key) => ({ key, label: key }))];
+  // The event's own type is always listed, even a retired one, so opening an
+  // old event to fix its date can't quietly change what kind of event it is.
+  const options = [
+    ...kinds,
+    ...[...new Set([...extra, row.kind])]
+      .filter((e) => e && !kinds.some((k) => k.key === e))
+      .map((key) => ({ key, label: labels[key] ?? key })),
+  ];
 
   return (
     <Card>
@@ -118,6 +156,8 @@ function EventForm({
           className="grid gap-3 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
+            // The date picker is a button, so the browser can't hold an empty one back.
+            if (!v.date) return void toast.error("Pick a date.");
             start(async () => {
               const { id, ...input } = v;
               const res = await saveCalendarEvent(id || null, input);
@@ -198,7 +238,7 @@ function EventForm({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ev-date">Date</Label>
-            <Input id="ev-date" type="date" value={v.date} onChange={(e) => set("date", e.target.value)} required />
+            <DatePicker id="ev-date" value={v.date} onChange={(x) => set("date", x)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ev-loc">Location</Label>
