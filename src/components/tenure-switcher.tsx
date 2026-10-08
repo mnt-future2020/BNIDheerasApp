@@ -30,7 +30,14 @@ export function TenureSwitcher({ tenures, selected }: { tenures: Tenure[]; selec
         })
       }
     >
-      <SelectTrigger size="sm" className="w-auto max-w-52 gap-1 border-0 bg-transparent px-2 font-medium text-foreground shadow-none" aria-label="Tenure">
+      {/* `min-w-0` so the name is what gives way when the header runs out of
+          room: the trigger is nowrap, and without it the row pushes the avatar
+          off a narrow screen instead of clamping the tenure to one line. */}
+      <SelectTrigger
+        size="sm"
+        className="w-auto min-w-0 max-w-32 gap-1 border-0 bg-transparent px-2 font-medium text-foreground shadow-none sm:max-w-44 lg:max-w-52"
+        aria-label="Tenure"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">

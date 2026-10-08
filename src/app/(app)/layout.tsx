@@ -17,8 +17,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+          {/* Smaller on a phone: at the full 44px the lockup is 184px wide and,
+              with the tenure name and the avatar beside it, the row no longer
+              fits a 360px screen. */}
           <Link href="/" className="shrink-0">
-            <BrandLogo height={44} preload />
+            <BrandLogo height={44} preload className="h-8 w-auto sm:h-9 lg:h-11" />
           </Link>
           <div className="ml-2 flex-1">
             <DesktopNav caps={[...me.caps]} isChapterMember={me.isChapterMember} />

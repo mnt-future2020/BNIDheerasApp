@@ -108,7 +108,7 @@ export function QuizHost({
                   <img
                     src={qr}
                     alt="QR code to join the quiz"
-                    className="w-[min(46vh,320px)] rounded-2xl border bg-white p-3"
+                    className="w-[min(46vh,320px)] max-w-full rounded-2xl border bg-white p-3"
                   />
                 ) : (
                   <div className="size-72 animate-pulse rounded-2xl bg-muted" />
