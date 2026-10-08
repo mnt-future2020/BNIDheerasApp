@@ -574,7 +574,13 @@ export const feedback = pgTable(
   (t) => [index("feedback_created_idx").on(t.createdAt), index("feedback_member_idx").on(t.memberId)],
 );
 
-/* Forms: the module was removed (Oct 2026). The tables stay so earlier responses aren't lost. */
+/* ------------------------------------------------------------------ */
+/* Forms                                                               */
+/* ------------------------------------------------------------------ */
+
+/* Removed in Oct 2026 (D8) and brought back in its place: a form the chapter
+   writes itself, answered at a public link. The tables were left behind then,
+   so the responses taken before the removal are still here. */
 
 export const FORM_KINDS = [
   "custom",
@@ -632,12 +638,156 @@ export const formResponse = pgTable(
     formId: text("form_id")
       .notNull()
       .references(() => form.id, { onDelete: "cascade" }),
+    /** Set when a signed-in member answered; null for anyone who used the public link. */
     memberId: text("member_id").references(() => member.id, { onDelete: "set null" }),
+    /**
+     * Who answered, when the app doesn't already know. A member's name is read
+     * from their record instead, so it stays right if they change it — and a
+     * member who leaves takes their name with them, which is why a response
+     * outlives its member (memberId goes null) but keeps no copy of the name.
+     */
+    respondentName: text("respondent_name"),
     data: jsonb("data").$type<Record<string, string | string[]>>().notNull(),
     ipHash: text("ip_hash"),
     createdAt: createdAt(),
   },
   (t) => [index("form_response_form_idx").on(t.formId, t.createdAt)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Quiz                                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A quiz played live in the feature presentation slot. The host drives it from
+ * one screen while everyone answers on their phones:
+ *
+ *  - `draft`  being written. The join link does nothing yet.
+ *  - `open`   the lobby. The QR is up and people are joining.
+ *  - `live`   a question is on screen, or its answer is being read out.
+ *  - `ended`  finished. Only the final places are left to see.
+ */
+export const QUIZ_STATUSES = ["draft", "open", "live", "ended"] as const;
+export type QuizStatus = (typeof QUIZ_STATUSES)[number];
+
+/** A question is on screen this long. The chapter runs eight seconds. */
+export const QUIZ_SECONDS_DEFAULT = 8;
+export const QUIZ_SECONDS_MIN = 5;
+export const QUIZ_SECONDS_MAX = 60;
+/** Four choices at most, which is what fits a phone two-by-two. */
+export const QUIZ_MAX_OPTIONS = 4;
+export const QUIZ_MIN_OPTIONS = 2;
+/** How many names the per-question "fastest" list shows. */
+export const QUIZ_QUESTION_WINNERS = 5;
+export const QUIZ_FINAL_WINNERS = 3;
+
+export const quiz = pgTable(
+  "quiz",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    /** The day it is meant to be played, picked when the quiz is created. */
+    playsOn: date("plays_on").notNull(),
+    status: text("status", { enum: QUIZ_STATUSES }).notNull().default("draft"),
+    /**
+     * The secret in the join link and the QR. Whoever holds the link can play,
+     * which is the point: a visitor with no account can join from WhatsApp.
+     */
+    joinToken: text("join_token")
+      .notNull()
+      .unique()
+      .$defaultFn(() => crypto.randomUUID().replaceAll("-", "")),
+    secondsPerQuestion: integer("seconds_per_question").notNull().default(QUIZ_SECONDS_DEFAULT),
+    /** 1-based place in the question list. 0 is the lobby, before the first one. */
+    currentPosition: integer("current_position").notNull().default(0),
+    /** When the current question went up. Every answer time is measured from it. */
+    questionStartedAt: timestamp("question_started_at", { withTimezone: true }),
+    /**
+     * Only set when the host reveals the answer early. Otherwise a question
+     * closes on its own, `secondsPerQuestion` after it went up, so the clock
+     * the players see is the one the server scores by.
+     */
+    questionEndedAt: timestamp("question_ended_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdById: text("created_by_id").references(() => member.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("quiz_plays_on_idx").on(t.playsOn)],
+);
+
+export const quizQuestion = pgTable(
+  "quiz_question",
+  {
+    id: id(),
+    quizId: text("quiz_id")
+      .notNull()
+      .references(() => quiz.id, { onDelete: "cascade" }),
+    /** 1-based, and the order they are asked in. */
+    position: integer("position").notNull(),
+    text: text("text").notNull(),
+    /** Two to four choices, in the order they are shown. */
+    options: jsonb("options").$type<string[]>().notNull().default([]),
+    /** Which of `options` is right, 0-based. Never sent to a player before the reveal. */
+    correctIndex: integer("correct_index").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("quiz_question_position_unique").on(t.quizId, t.position)],
+);
+
+/**
+ * One player. A member who is signed in is matched by `memberId`, so they keep
+ * their place even if the cookie goes; a guest from the WhatsApp link is known
+ * only by the name they typed and the token in their browser.
+ */
+export const quizParticipant = pgTable(
+  "quiz_participant",
+  {
+    id: id(),
+    quizId: text("quiz_id")
+      .notNull()
+      .references(() => quiz.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    memberId: text("member_id").references(() => member.id, { onDelete: "set null" }),
+    /** Hashed, like a kiosk's: the browser holds the token itself in a cookie. */
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("quiz_participant_quiz_idx").on(t.quizId),
+    // Two people called Ravi can't both be on the leaderboard as "Ravi".
+    uniqueIndex("quiz_participant_name_unique").on(t.quizId, t.name),
+    // NULLs are distinct, so this only constrains players who are members.
+    uniqueIndex("quiz_participant_member_unique").on(t.quizId, t.memberId),
+  ],
+);
+
+/**
+ * One tap. The primary key is the pair, so an answer can't be changed once it
+ * is in — which is what makes `ms` worth ranking by.
+ */
+export const quizAnswer = pgTable(
+  "quiz_answer",
+  {
+    questionId: text("question_id")
+      .notNull()
+      .references(() => quizQuestion.id, { onDelete: "cascade" }),
+    participantId: text("participant_id")
+      .notNull()
+      .references(() => quizParticipant.id, { onDelete: "cascade" }),
+    /** Which choice they tapped, 0-based. */
+    optionIndex: integer("option_index").notNull(),
+    correct: boolean("correct").notNull(),
+    /** Milliseconds from the question going up to the tap: the tie-breaker. */
+    ms: integer("ms").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.questionId, t.participantId] }),
+    index("quiz_answer_participant_idx").on(t.participantId),
+  ],
 );
 
 /* ------------------------------------------------------------------ */

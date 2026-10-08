@@ -1,6 +1,7 @@
 import {
   BellIcon,
   CalendarDaysIcon,
+  ClipboardListIcon,
   DoorOpenIcon,
   HomeIcon,
   IdCardIcon,
@@ -24,6 +25,7 @@ const ICONS = {
   trophy: TrophyIcon,
   card: IdCardIcon,
   feedback: MessageSquareTextIcon,
+  form: ClipboardListIcon,
   user: UserIcon,
   bell: BellIcon,
   door: DoorOpenIcon,

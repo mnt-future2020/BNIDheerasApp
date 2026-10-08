@@ -56,6 +56,22 @@ const LABELS: Record<string, string> = {
   "awards.publish": "Published the recognitions",
   "awards.unpublish": "Unpublished the recognitions",
   "awards.clear": "Cleared the recognitions",
+  // Forms
+  "form.create": "Made a form",
+  "form.update": "Edited a form",
+  "form.pause": "Stopped a form taking answers",
+  "form.reopen": "Opened a form again",
+  "form.delete": "Deleted a form and its answers",
+  "form.response_delete": "Deleted one answer to a form",
+  // Quiz
+  "quiz.create": "Made a quiz",
+  "quiz.update": "Edited a quiz",
+  "quiz.questions": "Saved a quiz's questions",
+  "quiz.open": "Opened a quiz for joining",
+  "quiz.start": "Started a quiz",
+  "quiz.end": "Finished a quiz",
+  "quiz.reset": "Reset a quiz and cleared its players",
+  "quiz.delete": "Deleted a quiz",
   // Events
   "calendar.create": "Added an event",
   "calendar.update": "Edited an event",

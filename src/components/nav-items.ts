@@ -42,6 +42,9 @@ export const SECONDARY_NAV: NavItem[] = [
   // Your own card. Someone else's is opened from their member page.
   { href: "/dance-card", label: "1-to-1 dance card", icon: "card", chapterOnly: true },
   { href: "/feedback", label: "Feedback", icon: "feedback", chapterOnly: true },
+  // What the chapter is asking right now. The public link is still how a form
+  // travels; this is so a member doesn't have to go looking for it.
+  { href: "/forms", label: "Forms", icon: "form" },
   // An admin-only login is not a person: it has no profile, only a password.
   { href: "/me", label: "My profile", icon: "user", chapterOnly: true },
   // No LVH desk of its own: the QR, pairing and PALMS all hang off the meeting.

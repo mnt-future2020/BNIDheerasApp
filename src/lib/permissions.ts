@@ -10,6 +10,7 @@ export const ROLES = {
   lvh: "LVH Team",
   attendance_coordinator: "Attendance Coordinator",
   event_coordinator: "Event Coordinator",
+  feature_presentation_coordinator: "Feature Presentation Coordinator",
 } as const;
 
 export type Role = keyof typeof ROLES;
@@ -27,6 +28,8 @@ export const CAPABILITIES = [
   "awards.manage",
   "calendar.manage",
   "feedback.manage",
+  "forms.manage",
+  "quiz.manage",
   "members.manage",
   "members.reset_password",
   "roles.manage",
@@ -112,6 +115,16 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     does: { view: "feedback.manage", edit: "feedback.manage", delete: "feedback.manage" },
   },
   {
+    module: "Forms",
+    note: "Write a form, share its link, read the answers — and delete an answer or the form itself",
+    does: { view: "forms.manage", create: "forms.manage", edit: "forms.manage", delete: "forms.manage" },
+  },
+  {
+    module: "Quiz",
+    note: "Write a quiz with its questions, share the join link, host it live, and delete one that wasn't played",
+    does: { view: "quiz.manage", create: "quiz.manage", edit: "quiz.manage", delete: "quiz.manage" },
+  },
+  {
     module: "Members",
     note: "Add, edit, import from CSV, and deactivate instead of deleting",
     does: { view: "members.manage", create: "members.manage", edit: "members.manage", delete: "members.manage" },
@@ -174,7 +187,13 @@ const ROLE_CAPS: Record<Role, readonly Capability[]> = {
   // PALMS and the summary that reads it back. The meeting itself is somebody
   // else's: no creating, editing, cancelling or deleting, and no visitors.
   attendance_coordinator: ["attendance.manual", "palms.view"],
-  event_coordinator: ["calendar.manage"],
+  // The calendar, and the forms that go with what is on it — a registration or
+  // a feedback form for an event is the Event Coordinator's to write and read.
+  event_coordinator: ["calendar.manage", "forms.manage"],
+  // A feature presentation is a calendar slot, so the calendar is what this
+  // role needs: booking the week, naming the presenter, moving it. The quiz
+  // that runs in the slot is theirs too — writing it and hosting it live.
+  feature_presentation_coordinator: ["calendar.manage", "quiz.manage"],
 };
 
 /** The capabilities one role gives, in the order of CAPABILITIES. */

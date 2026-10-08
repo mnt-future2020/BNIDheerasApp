@@ -96,7 +96,7 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
    - Everyone starts on the default password (Admin → Settings → Member sign-in). Share it with the chapter, or send each member their details from **Password → Send on WhatsApp**.
    - An account that only runs the app, such as "BNI Dheeras Admin", must have **Chapter member** unticked (Edit). It then never checks in and is left out of PALMS, absences, the directory, recognitions and celebrations.
 4. **Admin → Roles & terms:**
-   - President, VP, Secretary/Treasurer, LVH Team, Attendance Coordinator. The eye icon next to a role shows what it can do.
+   - President, VP, Secretary/Treasurer, LVH Team, Attendance Coordinator, Event Coordinator, Feature Presentation Coordinator. The eye icon next to a role shows what it can do.
    - The President of the current term gets the same full access as an Admin. When a new term starts, it moves to the new President.
    - The app refuses to give anyone else both device-approval and manual check-in roles.
 5. **Device-setup meeting:**
@@ -129,9 +129,13 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
 | `src/actions/` | Server actions. Every one checks the session and the caller's capability. |
 | `src/lib/permissions.ts` | Roles → capabilities, separation-of-duties rule |
 | `src/app/kiosk/` | Venue screen (rotating QR, welcome wall) |
+| `src/lib/quiz.ts` | Live quiz rules: question clock, fastest-first places, leaderboard, podium |
+| `src/app/quiz/[token]/` | Playing a quiz from the QR or WhatsApp link — no account needed |
+| `src/lib/forms.ts` | Form rules: the link's name, whether it is open, and every answer checked against its question |
+| `src/app/f/[slug]/` | Answering a form at its public link — signed in or not |
 | `src/app/(app)/lvh/` | LVH desk and live board |
 | `src/db/schema.ts` | All tables; migrations are in `drizzle/` |
-| `docs/brand/` | `bni-dheeras-logo.png` (in-app logo and browser-tab icon) and `bni-dheeras-app-icon.png` (the installed app's home-screen icon). After replacing either, run `python scripts/make-icons.py` (needs Pillow). |
+| `scripts/make-icons.py` | Builds the logo and every icon by setting the WE ARE / DHEERAS wordmark from type (needs Pillow and a bold grotesque). Edit the constants at the top and re-run. `docs/brand/` keeps the retired BNI artwork, which nothing builds from now. |
 
 ## Known limits
 

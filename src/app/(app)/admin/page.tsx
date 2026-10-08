@@ -1,5 +1,7 @@
 import {
+  BrainIcon,
   CalendarCogIcon,
+  ClipboardListIcon,
   HistoryIcon,
   MessageSquareTextIcon,
   SlidersHorizontalIcon,
@@ -29,6 +31,8 @@ const LINKS: { href: string; title: string; text: string; icon: React.ElementTyp
   { href: "/admin/awards", title: "Weekly recognitions", text: "Pick this week's winners", icon: TrophyIcon, caps: ["awards.manage"] },
   { href: "/admin/calendar", title: "Events", text: "Events, trainings, presentation slots", icon: CalendarCogIcon, caps: ["calendar.manage"] },
   { href: "/admin/feedback", title: "Suggestions & feedback", text: "Consider what members raise, or not", icon: MessageSquareTextIcon, caps: ["feedback.manage"] },
+  { href: "/admin/forms", title: "Forms", text: "Ask the chapter something at a link you share", icon: ClipboardListIcon, caps: ["forms.manage"] },
+  { href: "/admin/quiz", title: "Quiz", text: "Run a live quiz in the feature presentation slot", icon: BrainIcon, caps: ["quiz.manage"] },
   { href: "/admin/settings", title: "Settings", text: "The members' default sign-in password", icon: SlidersHorizontalIcon, caps: ["settings.manage"] },
   { href: "/admin/audit", title: "Audit log", text: "Who changed what, and why", icon: HistoryIcon, caps: ["audit.view"] },
 ];

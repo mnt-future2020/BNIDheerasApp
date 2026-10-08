@@ -1,0 +1,1 @@
+ALTER TABLE "form_response" ADD COLUMN "respondent_name" text;

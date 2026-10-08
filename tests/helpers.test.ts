@@ -52,7 +52,7 @@ describe("separation of duties", () => {
     expect(roleConflict(["attendance_coordinator", "secretary_treasurer"])).toBeNull();
   });
 
-  it("keeps the chapter's six roles, and roles removed from the app give nothing", () => {
+  it("keeps the chapter's roles, and roles removed from the app give nothing", () => {
     expect(ROLE_KEYS).toEqual([
       "president",
       "vice_president",
@@ -60,12 +60,17 @@ describe("separation of duties", () => {
       "lvh",
       "attendance_coordinator",
       "event_coordinator",
+      "feature_presentation_coordinator",
     ]);
     expect(capabilitiesFor(["lvh_captain" as Role], false).size).toBe(0);
     // One logs the visitors, the other works the sheet; neither owns the meeting.
     expect(roleCapabilities("lvh")).toEqual(["visitors.manage"]);
     expect(roleCapabilities("attendance_coordinator")).toEqual(["attendance.manual", "palms.view"]);
-    expect(roleCapabilities("event_coordinator")).toEqual(["calendar.manage"]);
+    // The Event Coordinator writes the forms that go with what is on the
+    // calendar; the Feature Presentation Coordinator books the slot and runs
+    // the quiz in it. Neither reaches the other's.
+    expect(roleCapabilities("event_coordinator")).toEqual(["calendar.manage", "forms.manage"]);
+    expect(roleCapabilities("feature_presentation_coordinator")).toEqual(["calendar.manage", "quiz.manage"]);
   });
 
   it("keeps PALMS, the summary, the QR, visitors and cancelling with the right role", () => {
@@ -108,9 +113,15 @@ describe("separation of duties", () => {
     expect(coordinator.map((r) => r.module)).toEqual(["PALMS"]);
     expect(coordinator[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "none" });
 
+    // The Event Coordinator: the calendar, and the forms that hang off it.
     const events = permissionGrid(capabilitiesFor(["event_coordinator"], false));
-    expect(events.map((r) => r.module)).toEqual(["Events calendar"]);
-    expect(events[0].cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "yes" });
+    expect(events.map((r) => r.module)).toEqual(["Events calendar", "Forms"]);
+    for (const row of events) expect(row.cells).toEqual({ view: "yes", create: "yes", edit: "yes", delete: "yes" });
+
+    // The Feature Presentation Coordinator books a slot and runs the quiz in
+    // it — and writes no forms.
+    const slots = permissionGrid(capabilitiesFor(["feature_presentation_coordinator"], false));
+    expect(slots.map((r) => r.module)).toEqual(["Events calendar", "Quiz"]);
 
     // Full access is never refused anything: its only empty cells are actions that don't exist.
     for (const row of permissionGrid(capabilitiesFor([], true))) {
@@ -134,6 +145,18 @@ describe("separation of duties", () => {
       expect(roleConflict([role, "lvh", "attendance_coordinator"])).toBeNull();
     }
     expect(hasFullAccess(["lvh", "attendance_coordinator"], false)).toBe(false);
+  });
+
+  it("puts the quiz with the Head Table, the Admin and its own coordinator", () => {
+    // Who the chapter asked to be able to write and host a quiz, and nobody else.
+    for (const role of FULL_ACCESS_ROLES) expect(capabilitiesFor([role], false).has("quiz.manage")).toBe(true);
+    expect(capabilitiesFor([], true).has("quiz.manage")).toBe(true);
+    expect(capabilitiesFor(["feature_presentation_coordinator"], false).has("quiz.manage")).toBe(true);
+    for (const role of ["lvh", "attendance_coordinator", "event_coordinator"] as Role[]) {
+      expect(capabilitiesFor([role], false).has("quiz.manage")).toBe(false);
+    }
+    // A plain member plays a quiz; they don't write one.
+    expect(capabilitiesFor([], false).has("quiz.manage")).toBe(false);
   });
 
   it("lets the Head Table reset any password, and nobody else reset theirs", () => {

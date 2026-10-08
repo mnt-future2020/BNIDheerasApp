@@ -36,6 +36,11 @@
 > - **D11 The whole Head Table = Admin (6 Oct 2026):** the Vice President and the Secretary / Treasurer now have every capability, like the President (D7).
 >   - They are all outside the separation-of-duties rule (§3), so one of them may hold LVH roles as well; their actions are audit-logged instead.
 >   - **The cost:** any of them can reset the others' and the Admin's password to the chapter default and sign in as them. The chapter accepted this.
+> - **D13 Forms are back (8 Oct 2026),** reversing the removal in D8. Suggestions & feedback stays: it is for what a member raises, while a form is for what the chapter asks.
+>   - A form is a list of questions with its own public link (`/f/<name-of-the-form>`), shared on WhatsApp. Opening it needs no sign-in: a signed-in member is known already and their email and mobile are filled in, and anyone else types their name first.
+>   - Writing one is for the President, VP, Secretary, Event Coordinator and admins (`forms.manage`). Reading the answers goes with it, as a table and a CSV.
+>   - Eleven question types, and per form: open and close dates, a cap on answers, members-only instead of public, and one answer per member (which only holds for members, since nothing identifies a visitor at a public link).
+>   - Members also see the forms that are open on a Forms page, so the link isn't the only way to find one.
 > - **D12 PALMS and visitor entry (6 Oct 2026):** Admin → Meetings → a meeting has **Enter PALMS** (one tap per member for P/A/L/M/S, for meetings recorded on paper) and **Visitors** (the count, then that many cards for name, mobile, business, category, invited by and a note).
 >   - Changing attendance that is already recorded needs a reason; the first entry doesn't. Both go to the audit log.
 >   - Visitor details appear on the PALMS summary and in the PALMS CSV.
@@ -325,7 +330,7 @@ Single chapter (decision D6): tables have no `chapter_id`.
 | `dance_card_templates`, `dance_cards` | Template fields (JSON) and each member's answers (JSON) | |
 | `award_types`, `awards` | The 5 award types and which fields each uses; winners per meeting | One winner per award per meeting |
 | `feedback` | Suggestions and feedback, anonymous flag, status, Head Table reply | |
-| `forms`, `form_responses` | Left from the removed Forms module (D8), so old responses aren't lost | Not used by the app |
+| `form`, `form_response` | A form the chapter writes, answered at a public link; one row per answer, with the member when they were signed in | Responses taken before D8 are still here |
 | `notifications` | In-app notices | |
 | `audit_log` | Who changed what, before and after, reason | Append-only |
 | `settings` | Attendance rules and other config | |
@@ -437,7 +442,7 @@ Built and checked locally (type-check, lint, 29 unit tests, production build, br
 - **Calendar:** month and agenda views, Head Table-managed slots, private phone-calendar feed.
 - **Dance card:** form matching the chapter's printed card, and a PDF that is that card filled in.
 - **Weekly recognitions:** admin entry, publishing, history and leaderboard.
-- **Forms:** built, then removed on 6 Oct 2026 (D8).
+- **Forms:** built, removed on 6 Oct 2026 (D8), and brought back on 8 Oct 2026 — this time answered at a public link (see D13).
 - **Admin:** members (add, edit, CSV import), roles per term with the separation-of-duties check, settings.
 
 Added on 6 Oct 2026 (D8), checked the same way (type-check, lint, 36 unit tests, production build, browser walkthrough):
