@@ -3,7 +3,7 @@ import { PageContainer, PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentOrNextMeeting, memberMeetingState } from "@/lib/attendance/queries";
-import { planNotice, undoDeadline } from "@/lib/attendance/rules";
+import { planNotice } from "@/lib/attendance/rules";
 import { getMemberDevices } from "@/lib/devices";
 import { requireMember } from "@/lib/session";
 import { formatDateTime, formatTime } from "@/lib/time";
@@ -29,7 +29,6 @@ export default async function ScanPage() {
   const [devices, meeting] = await Promise.all([getMemberDevices(me.id), getCurrentOrNextMeeting()]);
   const state = meeting ? await memberMeetingState(me.id, meeting.id) : null;
   const plan = state?.substitute ? ("substitute" as const) : (state?.leave?.kind ?? null);
-  const canUndo = meeting ? new Date() < undoDeadline(meeting) : false;
 
   return (
     <PageContainer>
@@ -61,12 +60,10 @@ export default async function ScanPage() {
           </CardContent>
         </Card>
       ) : plan ? (
-        // Said they can't come: the scanner would be inviting them to
-        // contradict themselves. Home is where that is taken back.
+        // Down as away: the scanner would be inviting them to contradict what
+        // the Head Table has on record.
         <Card>
-          <CardContent className="py-6 text-sm text-muted-foreground">
-            {planNotice(plan, canUndo ? "Undo it on the home page." : null)}
-          </CardContent>
+          <CardContent className="py-6 text-sm text-muted-foreground">{planNotice(plan)}</CardContent>
         </Card>
       ) : (
         <ScanClient memberId={me.id} devices={devices} />

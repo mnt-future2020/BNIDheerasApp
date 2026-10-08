@@ -11,15 +11,7 @@ import {
   windowAt,
 } from "@/lib/attendance/qr-token";
 import { longDate, reportText } from "@/lib/attendance/report-text";
-import {
-  checkinClosingTime,
-  checkinWindow,
-  isFutureMeetingDay,
-  lateCutoff,
-  planDeadline,
-  statusForCheckin,
-  undoDeadline,
-} from "@/lib/attendance/rules";
+import { checkinClosingTime, checkinWindow, isFutureMeetingDay, lateCutoff, statusForCheckin } from "@/lib/attendance/rules";
 
 const MEETING = "b460bf1a-4c36-4089-8561-1da595e2f14a";
 
@@ -90,17 +82,6 @@ describe("late rule (exact start time unless grace is set)", () => {
     expect(checkinClosingTime({ endsAt, checkinClosesAt })).toBe(checkinClosesAt);
     // Unset: check-in runs to the end of the meeting.
     expect(checkinClosingTime({ endsAt, checkinClosesAt: null })).toBe(endsAt);
-  });
-
-  it("takes reasons until the meeting ends, and undo only until it starts", () => {
-    const endsAt = new Date(start.getTime() + 90 * 60_000);
-    // Someone held up on the morning can still say so, mid-meeting...
-    expect(planDeadline({ endsAt })).toBe(endsAt);
-    expect(planDeadline({ endsAt }).getTime()).toBeGreaterThan(start.getTime());
-    // ...but taking it back closes when the meeting begins: by then the room
-    // is being counted, and the reason is part of that meeting's record.
-    expect(undoDeadline({ startsAt: start })).toBe(start);
-    expect(undoDeadline({ startsAt: start }).getTime()).toBeLessThan(planDeadline({ endsAt }).getTime());
   });
 });
 

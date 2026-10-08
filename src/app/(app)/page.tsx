@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { award, awardType, calendarEvent, meeting, member } from "@/db/schema";
 import { getCurrentOrNextMeeting, memberMeetingState } from "@/lib/attendance/queries";
-import { checkinClosingTime, checkinWindow, planDeadline, undoDeadline } from "@/lib/attendance/rules";
+import { checkinClosingTime, checkinWindow } from "@/lib/attendance/rules";
 import { type Celebration, getCelebrations, isToday, MONTH_NAMES, nextMonth, today } from "@/lib/celebrations";
 import { getMemberDevices } from "@/lib/devices";
 import { requireMember } from "@/lib/session";
@@ -20,7 +20,6 @@ import { accountName } from "@/lib/settings";
 import { publicUrl } from "@/lib/storage";
 import { selectedTenure, tenureRange } from "@/lib/tenure";
 import { formatDate, formatDateTime, formatShortDate, formatTime } from "@/lib/time";
-import { CancelPlanButton, PlanDialog, ViewPlanButton } from "./plan-dialog";
 
 export default async function HomePage() {
   const me = await requireMember();
@@ -54,17 +53,9 @@ export default async function HomePage() {
 
   const now = new Date();
   const windowState = next ? checkinWindow(now, next.checkinOpensAt, checkinClosingTime(next)) : null;
-  // Two deadlines, both enforced on the server as well, so the buttons can
-  // never offer something the action will refuse: a reason has to be in before
-  // the meeting ends, and it can be taken back until the meeting starts.
-  const canPlan = next ? now < planDeadline(next) : false;
-  const canUndo = next ? now < undoDeadline(next) : false;
-  // What they already said, if anything — shown instead of asking again.
-  const plan = state?.substitute
-    ? { kind: "substitute" as const, detail: `${state.substitute.name} · ${state.substitute.phone}` }
-    : state?.leave
-      ? { kind: state.leave.kind, detail: state.leave.reason ?? "" }
-      : null;
+  // What the Head Table has written down for them, if anything. Members don't
+  // enter this themselves, so it is shown rather than asked.
+  const away = Boolean(state?.substitute || state?.leave);
   // The admin-only account greets by the Chapter Admin's name from Settings,
   // in full: it isn't a person's record, so "Hello, Chapter" reads oddly.
   const firstName = me.isChapterMember ? me.fullName.split(" ")[0] : await accountName(me);
@@ -115,30 +106,21 @@ export default async function HomePage() {
                       ) : null}
                     </div>
                   ) : state?.substitute ? (
-                    <div className="flex items-center justify-between rounded-lg bg-violet-50 px-3 py-2 text-sm">
-                      <span>
-                        Substitute: <b>{state.substitute.name}</b>
-                        {state.substitute.arrivedAt ? " · arrived" : ""}
-                      </span>
-                      {canUndo ? <CancelPlanButton meetingId={next.id} /> : null}
+                    <div className="rounded-lg bg-violet-50 px-3 py-2 text-sm">
+                      Substitute: <b>{state.substitute.name}</b>
+                      {state.substitute.arrivedAt ? " · arrived" : ""}
                     </div>
                   ) : state?.leave ? (
-                    <div className="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2 text-sm">
-                      <span>
-                        {state.leave.kind === "medical" ? "Medical leave" : "Informed absence"}
-                      </span>
-                      {canUndo ? <CancelPlanButton meetingId={next.id} /> : null}
+                    <div className="rounded-lg bg-sky-50 px-3 py-2 text-sm">
+                      {state.leave.kind === "medical" ? "Medical leave" : "Informed absence"}
                     </div>
                   ) : null}
 
-                  {/* Three states, and only one of them at a time. Checked in:
-                      nothing left to do. Said they can't come: no check-in, or
-                      the app would be inviting them to contradict themselves —
-                      Undo above is the way back, while it is still offered.
-                      Neither: check in, or say you can't. */}
-                  {state?.attendance ? null : plan ? (
-                    <ViewPlanButton kind={plan.kind} detail={plan.detail} />
-                  ) : (
+                  {/* Checking in is the only thing on offer. Someone already
+                      marked in, or down as away, has nothing to do here: the
+                      scanner would invite them to contradict the record. A
+                      change to either is the LVH team's to make. */}
+                  {state?.attendance || away ? null : (
                     <div className="flex flex-wrap gap-2">
                       {windowState === "open" ? (
                         <Button asChild size="lg" className="h-12 flex-1 text-base">
@@ -151,7 +133,6 @@ export default async function HomePage() {
                           Check-in opens at {formatDateTime(next.checkinOpensAt)}.
                         </p>
                       ) : null}
-                      {canPlan ? <PlanDialog meetingId={next.id} meetingLabel={`${next.title} · ${formatShortDate(next.startsAt)}, ${formatTime(next.startsAt)}`} /> : null}
                     </div>
                   )}
                 </>
