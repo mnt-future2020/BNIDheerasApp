@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BottomNav, DesktopNav } from "@/components/app-nav";
+import { AppCredit } from "@/components/app-credit";
 import { BrandLogo } from "@/components/brand-logo";
 import { TenureSwitcher } from "@/components/tenure-switcher";
 import { UserMenu } from "@/components/user-menu";
@@ -34,7 +35,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           />
         </div>
       </header>
-      <main className="pb-safe-nav flex-1 lg:pb-10">{children}</main>
+      <main className="pb-safe-nav flex-1 lg:pb-6">{children}</main>
+      {/* On a wide screen there is no bottom bar to sit under, so the credit
+          closes the page instead. On phones it rides with the bar. */}
+      <AppCredit className="hidden pb-6 lg:block" />
       <BottomNav caps={[...me.caps]} isChapterMember={me.isChapterMember} />
     </div>
   );

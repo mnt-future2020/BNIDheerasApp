@@ -95,9 +95,11 @@
   }
 }
 
-/* Space for the fixed bottom navigation on phones, including the iPhone home bar. */
+/* Space for the fixed bottom navigation on phones, including the iPhone home bar.
+   The bar is the row of tabs plus the "Developed by" line under them, so this
+   has to cover both or the last of the page hides behind it. */
 .pb-safe-nav {
-  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }
 .bottom-safe {
   padding-bottom: env(safe-area-inset-bottom);

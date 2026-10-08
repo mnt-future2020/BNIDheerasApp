@@ -4,6 +4,7 @@ import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { AppCredit } from "@/components/app-credit";
 import { NavIcon } from "@/components/nav-icon";
 import { bottomNav, type NavItem, PRIMARY_NAV, SECONDARY_NAV, visible } from "@/components/nav-items";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -27,35 +28,41 @@ export function BottomNav({ caps, isChapterMember }: { caps: string[]; isChapter
 
   return (
     <>
-      <nav className="bottom-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur lg:hidden">
-        {/* The column count follows the list: an admin-only login has fewer tabs. */}
-        <ul className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
-          {items.map((item) => {
-            // More is the way to everything else, so it opens the drawer in
-            // place rather than taking the member off to a page of links.
-            const isMore = item.href === "/more";
-            const active = isMore ? open : isActive(pathname, item.href);
-            return (
-              <li key={item.href} className="min-w-0">
-                {isMore ? (
-                  <button type="button" className={tab(active)} aria-expanded={open} onClick={() => setOpen(true)}>
-                    <NavIcon name={item.icon} className="size-5 shrink-0" />
-                    <span className={tabLabel}>{item.shortLabel ?? item.label}</span>
-                  </button>
-                ) : (
-                  <Link href={item.href} className={tab(active)}>
-                    <NavIcon
-                      name={item.icon}
-                      className={cn("size-5 shrink-0", item.icon === "scan" && "size-6")}
-                    />
-                    <span className={tabLabel}>{item.shortLabel ?? item.label}</span>
-                  </Link>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      {/* A plain element around the bar, not the <nav> itself: the credit line
+          beneath the tabs is not navigation. `bottom-safe` sits on the outside
+          so the iPhone home bar is cleared below the credit, not above it. */}
+      <div className="bottom-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur lg:hidden">
+        <nav>
+          {/* The column count follows the list: an admin-only login has fewer tabs. */}
+          <ul className="mx-auto grid max-w-lg" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+            {items.map((item) => {
+              // More is the way to everything else, so it opens the drawer in
+              // place rather than taking the member off to a page of links.
+              const isMore = item.href === "/more";
+              const active = isMore ? open : isActive(pathname, item.href);
+              return (
+                <li key={item.href} className="min-w-0">
+                  {isMore ? (
+                    <button type="button" className={tab(active)} aria-expanded={open} onClick={() => setOpen(true)}>
+                      <NavIcon name={item.icon} className="size-5 shrink-0" />
+                      <span className={tabLabel}>{item.shortLabel ?? item.label}</span>
+                    </button>
+                  ) : (
+                    <Link href={item.href} className={tab(active)}>
+                      <NavIcon
+                        name={item.icon}
+                        className={cn("size-5 shrink-0", item.icon === "scan" && "size-6")}
+                      />
+                      <span className={tabLabel}>{item.shortLabel ?? item.label}</span>
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <AppCredit className="pb-1.5" />
+      </div>
 
       {/* Partial, from the side: the page stays visible behind it, so More
           reads as a detour rather than somewhere you have to come back from. */}
