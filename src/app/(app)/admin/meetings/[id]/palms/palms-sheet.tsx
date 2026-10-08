@@ -93,12 +93,6 @@ export function PalmsSheet({
   const tally = (s: AttendanceStatus) => members.filter((m) => picked[m.id] === s).length;
   // Everyone PALMS says attended, as the sheet stands right now.
   const inRoom = tally("P") + tally("L");
-  const setAll = (status: AttendanceStatus | "") => setPicked(Object.fromEntries(members.map((m) => [m.id, status])));
-  // The usual order of work: mark the absent, late and medical, then everyone
-  // left over was present. Only blank rows are filled, so nothing is undone.
-  const blanks = members.filter((m) => !picked[m.id]).length;
-  const fillRestPresent = () =>
-    setPicked((p) => Object.fromEntries(members.map((m) => [m.id, p[m.id] || "P"])));
 
   // Saving asks for the headcount first: the room count is only trustworthy
   // next to the statuses that were just entered, and it is what checks them.
@@ -123,17 +117,10 @@ export function PalmsSheet({
 
   return (
     <div className="space-y-4">
+      {/* Every letter is a deliberate tap, one member at a time — nothing fills
+          the sheet in on the Head Table's behalf. The running tally is all this
+          row carries. */}
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Quick fill:</span>
-        <Button type="button" variant="outline" size="sm" onClick={() => setAll("P")}>
-          Everyone present
-        </Button>
-        <Button type="button" variant="outline" size="sm" disabled={blanks === 0} onClick={fillRestPresent}>
-          Rest present ({blanks})
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={() => setAll("")}>
-          Clear all
-        </Button>
         <span className="ml-auto tabular-nums text-muted-foreground">
           {ATTENDANCE_STATUSES.map((s) => `${s} ${tally(s)}`).join(" · ")}
         </span>
