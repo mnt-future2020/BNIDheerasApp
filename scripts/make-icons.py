@@ -1,24 +1,30 @@
 """
-Builds every app icon, the in-app logo and the iOS launch screens from the
-chapter's glossy app icon. Needs Python 3 with Pillow:
+Builds the in-app logo, the app icons and the iOS launch screens. Needs Python 3
+with Pillow:
 
     python -m pip install pillow
-    python scripts/make-icons.py                          # the default artwork
-    python scripts/make-icons.py path/to/another-icon.png # or that one
+    python scripts/make-icons.py
 
-The artwork is the WE ARE / DHEERAS lockup on a glossy white rounded tile,
-supplied on a black square. The black outside the tile is cut away (flood-filled
-from the corners, so nothing black inside the tile is touched) and everything is
-cut from what is left. The browser tab is the exception: at 16px the tile's
-lettering is a smudge, so it gets the chapter's red D, set from type.
+Two pieces of artwork, each used in its own places:
+
+- public/images/werdheeras.jpeg, the flat WE ARE / DHEERAS wordmark, is the
+  logo everywhere inside the app (header, login, kiosk, quiz, forms). Its white
+  backing is turned into transparency and it is cropped to the ink.
+- public/images/Glossy We Are DHEERAS App Icon.png, the lockup on a glossy white
+  tile, is only the installed app's icon and the screen shown while it opens.
+  It comes on a black square; the black outside the tile is cut away
+  (flood-filled from the corners, so nothing black inside the tile is touched).
+
+The browser tab is the chapter's red D, set from type: at 16px either artwork
+is a smudge.
 """
 
-import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
-DEFAULT = "public/images/Glossy We Are DHEERAS App Icon.png"
+LOGO = "public/images/werdheeras.jpeg"
+ICON = "public/images/Glossy We Are DHEERAS App Icon.png"
 WHITE = (255, 255, 255, 255)
 # Anything this dark that touches the corners is the black backing, not the tile.
 BACKING_MAX = 40
@@ -40,6 +46,27 @@ def letter(text, size, fill):
     im = Image.new("RGBA", (size * 2, size * 2), (0, 0, 0, 0))
     ImageDraw.Draw(im).text((size // 2, size // 2), text, font=font, fill=fill)
     return im.crop(im.getchannel("A").getbbox())
+
+
+def wordmark(path):
+    """
+    The flat wordmark on transparent, cropped to its ink.
+
+    White is dropped on a short ramp rather than a hard cut, which keeps the
+    soft edge of the letters (and copes with JPEG noise in the backing). This
+    is a two-colour mark, so nothing in it is printed in a near-white tint.
+    """
+    im = Image.open(path).convert("RGBA")
+    r, g, b, _ = im.split()
+    # The lightest ink still reads as ink on every channel, so the darkest
+    # channel is what says "something is here".
+    darkest = ImageChops.darker(ImageChops.darker(r, g), b)
+    alpha = darkest.point(lambda v: 255 if v <= 230 else 0 if v >= 247 else round(255 * (247 - v) / 17))
+    im.putalpha(alpha)
+    box = alpha.getbbox()
+    if box is None:
+        raise SystemExit(f"{path} looks blank — nothing but white in it.")
+    return im.crop(box)
 
 
 def tile(path):
@@ -76,16 +103,15 @@ def square(im, size, frac, bg):
     return canvas
 
 
-source = sys.argv[1] if len(sys.argv) > 1 else DEFAULT
-if not Path(source).is_file():
-    raise SystemExit(f"No such file: {source}")
-icon = tile(source)
-print(f"Icon: {source}")
+for path in (LOGO, ICON):
+    if not Path(path).is_file():
+        raise SystemExit(f"No such file: {path}")
+logo, icon = wordmark(LOGO), tile(ICON)
 CLEAR = (0, 0, 0, 0)
 
 Path("src/assets").mkdir(parents=True, exist_ok=True)
 # Shown in the app (header, login, kiosk, quiz, forms) by src/components/brand-logo.tsx.
-square(icon, 256, 1.0, CLEAR).save("src/assets/dheeras-app-icon.png", optimize=True)
+fit(logo, 640, 640).save("src/assets/we-are-dheeras-logo.png", optimize=True)
 # Browser tab: the red D on transparent.
 mark = letter("D", 512, RED)
 square(mark, 256, 0.88, CLEAR).save("src/app/favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
