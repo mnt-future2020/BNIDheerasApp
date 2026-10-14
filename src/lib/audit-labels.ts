@@ -51,6 +51,7 @@ const LABELS: Record<string, string> = {
   "member.password_set": "A member chose their password",
   "member.password_change": "A member changed their password",
   "member.password_reset": "Reset a member's password",
+  "dance_card.update": "Edited a member's dance card",
   // Recognitions
   "awards.save_draft": "Saved a recognitions draft",
   "awards.publish": "Published the recognitions",

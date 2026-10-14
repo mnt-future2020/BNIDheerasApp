@@ -116,7 +116,7 @@ export default async function MemberPage({ params }: PageProps<"/members/[id]">)
             <MailIcon /> Email
           </a>
         </Button>
-        {card || id === me.id ? (
+        {card || id === me.id || me.caps.has("members.manage") ? (
           <Button asChild variant="outline">
             <Link href={id === me.id ? "/dance-card" : `/dance-card/${id}`}>
               <IdCardIcon /> Dance card

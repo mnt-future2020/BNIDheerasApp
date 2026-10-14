@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DANCE_CARD } from "@/lib/dance-card";
 import { loadDanceCard } from "@/lib/dance-card-data";
 import { requireMember } from "@/lib/session";
+import { formatDateTime } from "@/lib/time";
+import { DanceCardForm } from "../dance-card-form";
 
 export const metadata: Metadata = { title: "Dance card" };
 
@@ -17,6 +19,8 @@ export default async function MemberDanceCardPage({ params }: PageProps<"/dance-
   if (id === me.id) redirect("/dance-card");
   const card = await loadDanceCard(id);
   if (!card) notFound();
+  // Whoever keeps the member list can fill in or correct anyone's card.
+  const canEdit = me.caps.has("members.manage");
   const sections = DANCE_CARD.map((s) => ({
     ...s,
     groups: s.groups
@@ -28,6 +32,11 @@ export default async function MemberDanceCardPage({ params }: PageProps<"/dance-
     <PageContainer>
       <PageHeader
         title={`${card.member.name}'s dance card`}
+        description={
+          canEdit
+            ? `You can edit this card for ${card.member.name}. ${card.updatedAt ? `Last saved ${formatDateTime(card.updatedAt)}.` : "It hasn't been filled in yet."} Each save is recorded in the audit log.`
+            : undefined
+        }
         back={{ href: `/members/${id}`, label: card.member.name }}
         actions={
           <Button asChild variant="outline">
@@ -46,39 +55,45 @@ export default async function MemberDanceCardPage({ params }: PageProps<"/dance-
           </div>
         </CardContent>
       </Card>
-      {card.updatedAt ? null : (
-        <p className="mb-4 text-sm text-muted-foreground">{card.member.name} hasn&apos;t filled in their dance card yet.</p>
+      {canEdit ? (
+        <DanceCardForm initial={card.answers} member={{ id, name: card.member.name }} />
+      ) : (
+        <>
+          {card.updatedAt ? null : (
+            <p className="mb-4 text-sm text-muted-foreground">{card.member.name} hasn&apos;t filled in their dance card yet.</p>
+          )}
+          <div className="space-y-4">
+            {sections.map((section) => (
+              <Card key={section.title}>
+                <CardHeader>
+                  <CardTitle className="text-base font-bold tracking-wide text-primary uppercase">{section.title}</CardTitle>
+                  {section.note ? <CardDescription className="italic">({section.note})</CardDescription> : null}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {section.groups.map((group, i) => (
+                    <div key={group.title ?? i} className="space-y-2">
+                      {group.title ? <h3 className="text-sm font-bold">{group.title}:</h3> : null}
+                      {group.fields.map((f) =>
+                        f.kind === "numbered" ? (
+                          <div key={f.key} className="flex gap-2 text-sm">
+                            <span className="w-6 shrink-0 text-right text-muted-foreground">{f.label}</span>
+                            <span>{card.answers[f.key]}</span>
+                          </div>
+                        ) : (
+                          <div key={f.key}>
+                            <div className="text-xs font-medium text-muted-foreground">{f.label}</div>
+                            <div className="text-sm">{card.answers[f.key]}</div>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
-      <div className="space-y-4">
-        {sections.map((section) => (
-          <Card key={section.title}>
-            <CardHeader>
-              <CardTitle className="text-base font-bold tracking-wide text-primary uppercase">{section.title}</CardTitle>
-              {section.note ? <CardDescription className="italic">({section.note})</CardDescription> : null}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {section.groups.map((group, i) => (
-                <div key={group.title ?? i} className="space-y-2">
-                  {group.title ? <h3 className="text-sm font-bold">{group.title}:</h3> : null}
-                  {group.fields.map((f) =>
-                    f.kind === "numbered" ? (
-                      <div key={f.key} className="flex gap-2 text-sm">
-                        <span className="w-6 shrink-0 text-right text-muted-foreground">{f.label}</span>
-                        <span>{card.answers[f.key]}</span>
-                      </div>
-                    ) : (
-                      <div key={f.key}>
-                        <div className="text-xs font-medium text-muted-foreground">{f.label}</div>
-                        <div className="text-sm">{card.answers[f.key]}</div>
-                      </div>
-                    ),
-                  )}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </PageContainer>
   );
 }

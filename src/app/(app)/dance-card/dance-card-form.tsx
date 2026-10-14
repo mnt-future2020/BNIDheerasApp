@@ -11,15 +11,24 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { type CardField, DANCE_CARD, maxAnswerLength, PROFILE_FIELDS } from "@/lib/dance-card";
 
-/** The chapter's dance card, in the same order and wording as the printed card. */
-export function DanceCardForm({ initial }: { initial: Record<string, string> }) {
+/**
+ * The chapter's dance card, in the same order and wording as the printed card.
+ * `member` is set when the Head Table edits someone else's card.
+ */
+export function DanceCardForm({
+  initial,
+  member,
+}: {
+  initial: Record<string, string>;
+  member?: { id: string; name: string };
+}) {
   const [data, setData] = useState(initial);
   const [dirty, setDirty] = useState(false);
   const [pending, start] = useTransition();
 
   const save = () =>
     start(async () => {
-      const res = await saveDanceCard(data);
+      const res = await saveDanceCard(data, member?.id);
       if (!res.ok) return void toast.error(res.error);
       setDirty(false);
       toast.success("Dance card saved.");
@@ -48,7 +57,13 @@ export function DanceCardForm({ initial }: { initial: Record<string, string> }) 
               <div key={group.title ?? i} className="space-y-3">
                 {group.title ? <h3 className="font-bold">{group.title}:</h3> : null}
                 {group.fields.map((f) => (
-                  <FieldInput key={f.key} field={f} value={data[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
+                  <FieldInput
+                    key={f.key}
+                    field={f}
+                    value={data[f.key] ?? ""}
+                    onChange={(v) => set(f.key, v)}
+                    otherMember={member?.name}
+                  />
                 ))}
               </div>
             ))}
@@ -64,9 +79,22 @@ export function DanceCardForm({ initial }: { initial: Record<string, string> }) 
   );
 }
 
-function FieldInput({ field, value, onChange }: { field: CardField; value: string; onChange: (value: string) => void }) {
+function FieldInput({
+  field,
+  value,
+  onChange,
+  otherMember,
+}: {
+  field: CardField;
+  value: string;
+  onChange: (value: string) => void;
+  /** Whose card it is, when it isn't the signed-in member's own. */
+  otherMember?: string;
+}) {
   const max = maxAnswerLength(field);
-  const profile = PROFILE_FIELDS[field.key];
+  const own = PROFILE_FIELDS[field.key];
+  // "My profile" links lead to your own profile, so someone else's card points at the member list instead.
+  const profile = own && otherMember ? { note: `From ${otherMember}'s member details.`, href: "/admin/members" } : own;
   const props = {
     id: field.key,
     value,
