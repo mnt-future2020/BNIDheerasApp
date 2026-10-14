@@ -144,7 +144,7 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
 | `src/app/f/[slug]/` | Answering a form at its public link — signed in or not |
 | `src/app/(app)/lvh/` | LVH desk and live board |
 | `src/db/schema.ts` | All tables; migrations are in `drizzle/` |
-| `scripts/make-icons.py` | Builds the logo and every icon by setting the WE ARE / DHEERAS wordmark from type (needs Pillow and a bold grotesque). Edit the constants at the top and re-run. `docs/brand/` keeps the retired BNI artwork, which nothing builds from now. |
+| `scripts/make-icons.py` | Builds every app icon, the in-app logo and the iOS launch screens from `public/images/Glossy We Are DHEERAS App Icon.png` (needs Pillow); the browser tab's red D is set from type (needs a bold grotesque). Re-run after changing the artwork. |
 
 ## Known limits
 
