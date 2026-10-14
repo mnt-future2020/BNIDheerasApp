@@ -62,7 +62,7 @@ export function InstallAppCard() {
   return (
     <AppCard>
       <div className="min-w-0 flex-1">
-        <div className="font-semibold">Get the BNI Dheeras app</div>
+        <div className="font-semibold">Get the We Are Dheeras app</div>
         <p className="text-sm text-muted-foreground">
           {state === "ios" ? (
             <>
@@ -83,7 +83,7 @@ export function InstallAppCard() {
           disabled={pending}
           onClick={() =>
             start(async () => {
-              if (await promptInstall()) toast.success("Installed. Open BNI Dheeras from your home screen.");
+              if (await promptInstall()) toast.success("Installed. Open We Are Dheeras from your home screen.");
             })
           }
         >

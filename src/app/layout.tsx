@@ -15,9 +15,9 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: { default: "BNI Dheeras", template: "%s · BNI Dheeras" },
+  title: { default: "We Are Dheeras", template: "%s · We Are Dheeras" },
   description: "BNI Dheeras chapter app: attendance, members, calendar, dance cards and more.",
-  applicationName: "BNI Dheeras",
+  applicationName: "We Are Dheeras",
   appleWebApp: { capable: true, title: "We Are Dheeras", statusBarStyle: "default", startupImage: SPLASH_SCREENS },
   formatDetection: { telephone: false },
 };

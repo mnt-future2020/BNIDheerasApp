@@ -12,7 +12,7 @@ export default async function LoginPage() {
     <main className="flex min-h-dvh flex-col items-center justify-center bg-sterling-light px-4 py-10">
       <div className="mb-6 text-center">
         <BrandLogo height={112} preload className="mx-auto mb-3" />
-        <h1 className="sr-only">BNI Dheeras</h1>
+        <h1 className="sr-only">We Are Dheeras</h1>
         <p className="text-sm text-muted-foreground">Chapter app · Madurai</p>
       </div>
       <LoginForm />
