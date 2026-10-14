@@ -59,6 +59,7 @@ npm run dev                     # http://localhost:3000
 - **Install:** Home offers *Get the BNI Dheeras app* in a phone browser — a one-tap **Install** button where the browser has one (Chrome, Edge), and the Share → **Add to Home Screen** steps on iPhone. It goes away once the app is installed.
 - **Update:** an installed app keeps running the copy it downloaded the day it was installed, so a deployment does not reach it on its own. The same card then offers **Update** in place of Install: it clears what the app has cached and opens it again on the new version, still signed in.
   - It asks when Home opens and whenever the app comes back to the foreground — the moment that matters, since members leave it open for weeks — and at most once a day, so in practice on the first open of each day. Never on a timer: a deployment slept through is still there in the morning.
+  - A page that fails inside the app asks straight away, past that daily limit, because the usual cause is a deployment that landed while the app was open: `(app)/error.tsx` then offers Update rather than a Try again that cannot work. `global-error.tsx` catches the same thing when the failure takes the app shell with it.
   - What it compares is the commit the running app was built from against the one the server reports at `/api/version`. So the button appears only after a deployment of a *different* commit — including in development, where restarting `next dev` on a new commit offers the update to a tab left open on the old one.
 
 ### Testing on a real phone
