@@ -16,9 +16,6 @@
 
 import { APP_BUILD } from "@/lib/app-build";
 
-/** A chapter app gains a feature a few times a term, so this is not a poll race. */
-const CHECK_MS = 15 * 60 * 1000;
-
 let live = APP_BUILD;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
@@ -42,15 +39,52 @@ export function getUpdateState(): boolean {
 export const getServerUpdateState = (): boolean => false;
 
 /**
- * One check. Quiet about failures: being offline, or asleep in the background,
- * is the normal reason this fails on a phone, and the next check will do.
+ * Once a day. The chapter app is deployed a few times a term, so asking more
+ * often only spends a phone's radio to hear the same answer; in practice this
+ * lands on the first time a member opens the app each day, which is exactly
+ * when being a version behind starts to matter to them.
  */
-export async function checkForUpdate(): Promise<void> {
+const ASK_EVERY_MS = 24 * 60 * 60 * 1000;
+const ASKED_AT = "dheeras.update-asked-at";
+
+/**
+ * When we last got an answer. Private browsing refuses storage altogether, and
+ * a day's throttle is not worth an exception: without it we simply fall back to
+ * asking once per visit, which is what this did before.
+ */
+function askedAt(): number {
+  try {
+    return Number(localStorage.getItem(ASKED_AT)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function rememberAsked() {
+  try {
+    localStorage.setItem(ASKED_AT, String(Date.now()));
+  } catch {
+    return;
+  }
+}
+
+/**
+ * One check, at most once a day unless `force` says otherwise — the error
+ * boundary forces one, because a page that has just broken is the one moment
+ * where the answer decides what to offer the member.
+ *
+ * Quiet about failures: being offline, or asleep in the background, is the
+ * normal reason this fails on a phone. A failed ask is not remembered either,
+ * so a phone that was in the lift still gets its day's answer.
+ */
+export async function checkForUpdate(force = false): Promise<void> {
   if (APP_BUILD === "") return; // Built without a version to compare: nothing to ask about.
+  if (!force && Date.now() - askedAt() < ASK_EVERY_MS) return;
   try {
     const res = await fetch("/api/version", { cache: "no-store" });
     if (!res.ok) return;
     const { build } = (await res.json()) as { build?: string };
+    rememberAsked();
     if (!build || build === live) return;
     live = build;
     emit();
@@ -59,27 +93,28 @@ export async function checkForUpdate(): Promise<void> {
   }
 }
 
-let timer: ReturnType<typeof setInterval> | undefined;
-
 const onVisible = () => {
   if (document.visibilityState === "visible") void checkForUpdate();
 };
 
+/**
+ * Asks when Home opens, and again whenever the app comes back to the
+ * foreground — the installed app may have been sitting behind WhatsApp since
+ * before the deployment — and `checkForUpdate` keeps that to once a day.
+ *
+ * Nothing on a timer. A deployment the member sleeps through is still there in
+ * the morning, so there is nothing a clock would catch that opening the app
+ * does not, and a phone in a pocket has better things to spend its radio on.
+ */
 export function subscribeUpdate(onChange: () => void) {
   listeners.add(onChange);
-  // Coming back to the foreground is the moment that matters: the installed app
-  // may have been sitting behind WhatsApp since before the deployment.
   if (listeners.size === 1) {
     void checkForUpdate();
-    timer = setInterval(() => void checkForUpdate(), CHECK_MS);
     document.addEventListener("visibilitychange", onVisible);
   }
   return () => {
     listeners.delete(onChange);
-    if (listeners.size === 0) {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisible);
-    }
+    if (listeners.size === 0) document.removeEventListener("visibilitychange", onVisible);
   };
 }
 
