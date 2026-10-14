@@ -22,7 +22,9 @@ function createPool() {
   const isLocal = !connectionString || /@(localhost|127\.0\.0\.1)[:/]/.test(connectionString);
   const pool = new Pool({
     connectionString,
-    max: Number(process.env.DB_POOL_MAX ?? (isLocal ? 1 : 5)),
+    // Neon's pooler hands these out cheaply; ten keeps a busy moment (a room
+    // answering a quiz question together) from queueing behind a handful.
+    max: Number(process.env.DB_POOL_MAX ?? (isLocal ? 1 : 10)),
     idleTimeoutMillis: 10_000,
     ssl: isLocal ? false : undefined,
   });

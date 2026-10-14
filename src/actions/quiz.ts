@@ -19,7 +19,13 @@ import { type ActionResult, runAction, UserError } from "@/lib/action";
 import { audit } from "@/lib/audit";
 import { isUniqueViolation } from "@/lib/db-errors";
 import { answersOpen, joinOpen } from "@/lib/quiz";
-import { currentParticipant, nameTaken, newParticipantToken, setParticipantCookie } from "@/lib/quiz-state";
+import {
+  currentParticipant,
+  forgetQuizState,
+  nameTaken,
+  newParticipantToken,
+  setParticipantCookie,
+} from "@/lib/quiz-state";
 import { assertCap, getCurrentMember } from "@/lib/session";
 
 /** A roomful and then some. Past this, somebody is playing with the join link. */
@@ -98,6 +104,7 @@ export async function updateQuiz(id: string, input: z.input<typeof quizSchema>):
       throw new UserError("This quiz is being played. The seconds per question can't change now.");
     }
     await db.update(quiz).set(data).where(eq(quiz.id, before.id));
+    forgetQuizState();
     await audit({ actorId: me.id, action: "quiz.update", entity: "quiz", entityId: before.id, before, after: data });
     refresh();
     return null;
@@ -111,6 +118,7 @@ export async function deleteQuiz(id: string): Promise<ActionResult> {
     if (row.status === "live") throw new UserError("Finish the quiz before deleting it.");
     // Questions, players and answers go with it (cascade).
     await db.delete(quiz).where(eq(quiz.id, row.id));
+    forgetQuizState();
     await audit({ actorId: me.id, action: "quiz.delete", entity: "quiz", entityId: row.id, before: row });
     refresh();
     return null;
@@ -147,6 +155,7 @@ export async function saveQuestions(input: z.input<typeof questionsSchema>): Pro
         tx,
       );
     });
+    forgetQuizState();
     refresh();
     return { saved: rows.length };
   });
@@ -165,6 +174,7 @@ export async function openQuiz(id: string): Promise<ActionResult> {
       .limit(1);
     if (!first) throw new UserError("Add a question before opening the quiz.");
     await db.update(quiz).set({ status: "open" }).where(eq(quiz.id, row.id));
+    forgetQuizState();
     await audit({ actorId: me.id, action: "quiz.open", entity: "quiz", entityId: row.id, after: { title: row.name } });
     refresh();
     return null;
@@ -183,6 +193,7 @@ export async function startQuiz(id: string): Promise<ActionResult> {
       .update(quiz)
       .set({ status: "live", currentPosition: 1, questionStartedAt: now, questionEndedAt: null, startedAt: now })
       .where(eq(quiz.id, row.id));
+    forgetQuizState();
     await audit({ actorId: me.id, action: "quiz.start", entity: "quiz", entityId: row.id, after: { title: row.name } });
     return null;
   });
@@ -196,6 +207,7 @@ export async function revealAnswer(id: string): Promise<ActionResult> {
     if (row.status !== "live" || row.currentPosition < 1) throw new UserError("No question is on screen.");
     if (row.questionEndedAt) return null;
     await db.update(quiz).set({ questionEndedAt: new Date() }).where(eq(quiz.id, row.id));
+    forgetQuizState();
     return null;
   });
 }
@@ -217,6 +229,7 @@ export async function nextQuestion(id: string): Promise<ActionResult<{ position:
     const next = questions.find((q) => q.position > row.currentPosition);
     if (!next) {
       await db.update(quiz).set({ status: "ended", endedAt: new Date() }).where(eq(quiz.id, row.id));
+      forgetQuizState();
       await audit({ actorId: me.id, action: "quiz.end", entity: "quiz", entityId: row.id, after: { title: row.name } });
       refresh();
       return { position: row.currentPosition, ended: true };
@@ -225,6 +238,7 @@ export async function nextQuestion(id: string): Promise<ActionResult<{ position:
       .update(quiz)
       .set({ currentPosition: next.position, questionStartedAt: new Date(), questionEndedAt: null })
       .where(eq(quiz.id, row.id));
+    forgetQuizState();
     return { position: next.position, ended: false };
   });
 }
@@ -236,6 +250,7 @@ export async function endQuiz(id: string): Promise<ActionResult> {
     const row = await loadQuiz(id);
     if (row.status === "ended") return null;
     await db.update(quiz).set({ status: "ended", endedAt: new Date() }).where(eq(quiz.id, row.id));
+    forgetQuizState();
     await audit({ actorId: me.id, action: "quiz.end", entity: "quiz", entityId: row.id, after: { title: row.name } });
     refresh();
     return null;
@@ -279,6 +294,7 @@ export async function resetQuiz(id: string): Promise<ActionResult> {
         tx,
       );
     });
+    forgetQuizState();
     refresh();
     return null;
   });
@@ -332,6 +348,8 @@ export async function joinQuiz(input: z.input<typeof joinSchema>): Promise<Actio
       if (isUniqueViolation(error)) throw new UserError("That name was just taken. Try another one.");
       throw error;
     }
+    // Their name should be on the host's screen, and theirs, on the next poll.
+    forgetQuizState();
     await setParticipantCookie(row.id, token);
     return { name: data.name };
   });
@@ -352,11 +370,14 @@ const answerSchema = z.object({
 export async function answerQuestion(
   input: z.input<typeof answerSchema>,
 ): Promise<ActionResult<{ optionIndex: number; already: boolean }>> {
+  // The moment the tap reached the server, read before anything waits on the
+  // database: when sixty answers land together some queue for a connection,
+  // and that wait mustn't count against them or push them past the buzzer.
+  const now = new Date();
   return runAction(async () => {
     const data = answerSchema.parse(input);
     const [row] = await db.select().from(quiz).where(eq(quiz.joinToken, data.joinToken));
     if (!row) throw new UserError("That quiz link doesn't work.");
-    const now = new Date();
     if (!answersOpen(row, now)) throw new UserError("Time's up on that question.");
 
     const player = await currentParticipant(row.id);
