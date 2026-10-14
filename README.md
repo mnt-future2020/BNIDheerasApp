@@ -54,6 +54,13 @@ npm run dev                     # http://localhost:3000
 - **Guessing limits:** 8 wrong passwords for one login ID, or 30 from one network, in 15 minutes block further tries for 15 minutes.
 - **Emergency:** there is no recovery page. If no admin or President can sign in, the password has to be reset in the database — any admin who can still sign in should do it from Admin → Members instead.
 
+### Installing the app, and updating it
+
+- **Install:** Home offers *Get the BNI Dheeras app* in a phone browser — a one-tap **Install** button where the browser has one (Chrome, Edge), and the Share → **Add to Home Screen** steps on iPhone. It goes away once the app is installed.
+- **Update:** an installed app keeps running the copy it downloaded the day it was installed, so a deployment does not reach it on its own. The same card then offers **Update** in place of Install: it clears what the app has cached and opens it again on the new version, still signed in.
+  - It asks when the app comes back to the foreground — the moment that matters, since members leave it open for weeks — and every 15 minutes while Home is open.
+  - What it compares is the commit the running app was built from against the one the server reports at `/api/version`. So the button appears only after a deployment of a *different* commit — including in development, where restarting `next dev` on a new commit offers the update to a tab left open on the old one.
+
 ### Testing on a real phone
 
 The camera, the device key (WebCrypto) and GPS for Near me only work over HTTPS. The easiest way is a staging deployment, or an HTTPS tunnel to the dev server (`npx localtunnel --port 3000`).
@@ -81,6 +88,7 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
      - It passes `--webpack`, because Next's native SWC/Turbopack binaries need glibc 2.29+ and some shared hosts are older. The command is written this way, rather than as a separate script, because hosts like Hostinger only offer `npm run build`. For a quick local build without migrations, use `npm run build:local`.
      - The build needs `devDependencies` (TypeScript, Tailwind, the React Compiler plugin, drizzle-kit), so don't install with `--omit=dev`.
      - `DATABASE_URL` and `NEXT_PUBLIC_APP_URL` must be set at **build** time, not only at runtime.
+     - Deploy from the repository, so the build can read the commit: that is what tells an already-installed app that a new version is out. Where there is no repository to read, set `NEXT_DEPLOYMENT_ID` to the version being deployed. The build warns when it finds neither, and members then stay on the version they have.
    - Start command: `npm start`.
    - Weekly housekeeping: set `CRON_SECRET` and have the host's scheduler call the endpoint every Monday, e.g.
      `curl -H "Authorization: Bearer $CRON_SECRET" https://darkred-locust-154312.hostingersite.com/api/cron/monday-report`.
@@ -126,6 +134,7 @@ On iPhone, use **Share → Add to Home Screen** first, then register the phone f
 |---|---|
 | `src/lib/attendance/` | Check-in rules:<br>• `service.ts`: the six checks, LVH pass scan, manual check-in, finalize<br>• `qr-token.ts`: rotating HMAC token<br>• `device-crypto.ts`: device-key signatures |
 | `src/lib/device-key.ts` | The phone's non-extractable signing key (browser side) |
+| `src/lib/app-update.ts` | Noticing that a newer version has been deployed, and the Update button on Home |
 | `src/actions/` | Server actions. Every one checks the session and the caller's capability. |
 | `src/lib/permissions.ts` | Roles → capabilities, separation-of-duties rule |
 | `src/app/kiosk/` | Venue screen (rotating QR, welcome wall) |
