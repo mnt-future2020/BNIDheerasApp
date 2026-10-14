@@ -4,6 +4,8 @@
  * with its size in points and pixel ratio. The PNGs are built by
  * scripts/make-icons.py from the same list.
  */
+import { iconUrl } from "@/lib/app-icons";
+
 const SCREENS: [width: number, height: number, ratio: number][] = [
   [440, 956, 3],
   [430, 932, 3],
@@ -29,6 +31,6 @@ const SCREENS: [width: number, height: number, ratio: number][] = [
 ];
 
 export const SPLASH_SCREENS = SCREENS.map(([w, h, ratio]) => ({
-  url: `/splash/splash-${w * ratio}x${h * ratio}.png`,
+  url: iconUrl(`/splash/splash-${w * ratio}x${h * ratio}.png`),
   media: `(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${ratio}) and (orientation: portrait)`,
 }));

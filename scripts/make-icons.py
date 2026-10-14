@@ -17,6 +17,9 @@ Two pieces of artwork, each used in its own places:
 
 The browser tab is the chapter's red D, set from type: at 16px either artwork
 is a smudge.
+
+After changing the icons or launch screens, bump ICON_VERSION in
+src/lib/app-icons.ts: phones keep an installed app's icon under its URL.
 """
 
 from pathlib import Path
