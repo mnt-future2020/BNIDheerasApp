@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: { default: "BNI Dheeras", template: "%s · BNI Dheeras" },
   description: "BNI Dheeras chapter app: attendance, members, calendar, dance cards and more.",
   applicationName: "BNI Dheeras",
-  appleWebApp: { capable: true, title: "BNI Dheeras", statusBarStyle: "default", startupImage: SPLASH_SCREENS },
+  appleWebApp: { capable: true, title: "We Are Dheeras", statusBarStyle: "default", startupImage: SPLASH_SCREENS },
   formatDetection: { telephone: false },
 };
 

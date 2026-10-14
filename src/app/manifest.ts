@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "BNI Dheeras",
-    short_name: "BNI Dheeras",
+    name: "We Are Dheeras",
+    short_name: "We Are Dheeras",
     description: "BNI Dheeras chapter app",
     start_url: "/",
     scope: "/",
