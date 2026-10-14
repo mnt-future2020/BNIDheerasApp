@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SPLASH_SCREENS } from "@/lib/splash";
 import "./globals.css";
 
 /* Self-hosted by Next (no request to Google at runtime). Poppins isn't a
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   title: { default: "BNI Dheeras", template: "%s · BNI Dheeras" },
   description: "BNI Dheeras chapter app: attendance, members, calendar, dance cards and more.",
   applicationName: "BNI Dheeras",
-  appleWebApp: { capable: true, title: "BNI Dheeras", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "BNI Dheeras", statusBarStyle: "default", startupImage: SPLASH_SCREENS },
   formatDetection: { telephone: false },
 };
 

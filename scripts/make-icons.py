@@ -166,4 +166,24 @@ app.resize((512, 512), Image.LANCZOS).save("public/icons/app-512.png", optimize=
 # into the central safe zone — the 80%-wide circle, which this lockup's corners
 # have to sit inside, not just its width.
 square(logo, 512, 0.72, WHITE).convert("RGB").save("public/icons/app-maskable-512.png", optimize=True)
+
+# Launch screens: the app icon's lockup, centred on white, while the installed
+# app opens. Android draws its own from the manifest (icon + background_color);
+# iOS shows only an image made for the exact screen, else a blank white page.
+# Portrait only, as the manifest locks the app to portrait. Each entry is the
+# screen in CSS points and its pixel ratio; src/lib/splash.ts lists the same.
+SPLASH = [
+    (440, 956, 3), (430, 932, 3), (428, 926, 3), (414, 896, 3), (414, 896, 2), (414, 736, 3),
+    (402, 874, 3), (393, 852, 3), (390, 844, 3), (375, 812, 3), (375, 667, 2), (320, 568, 2),
+    (1032, 1376, 2), (1024, 1366, 2), (834, 1210, 2), (834, 1194, 2), (834, 1112, 2), (820, 1180, 2),
+    (810, 1080, 2), (768, 1024, 2), (744, 1133, 2),
+]
+Path("public/splash").mkdir(parents=True, exist_ok=True)
+for w, h, ratio in SPLASH:
+    pw, ph = w * ratio, h * ratio
+    screen = Image.new("RGBA", (pw, ph), WHITE)
+    # Half the width on a phone; a tablet keeps it to the same size in points.
+    inner = fit(logo, min(pw * 0.5, 220 * ratio), ph)
+    screen.alpha_composite(inner, ((pw - inner.width) // 2, (ph - inner.height) // 2))
+    screen.convert("RGB").save(f"public/splash/splash-{pw}x{ph}.png", optimize=True)
 print("Icons written.")
