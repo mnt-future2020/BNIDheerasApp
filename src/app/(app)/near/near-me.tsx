@@ -19,17 +19,21 @@ import { cn } from "@/lib/utils";
 type Origin = { lat: number; lng: number; label: string };
 
 const BANDS = [
-  { max: 2000, label: "Within 2 km" },
+  { max: 1000, label: "Within 1 km" },
+  { max: 2000, label: "1–2 km" },
   { max: 5000, label: "2–5 km" },
   { max: 10000, label: "5–10 km" },
   { max: Infinity, label: "10 km and beyond" },
 ];
+/** Distance chips: "within N km", except 10+ which is everyone further than 10 km. */
 const LIMITS = [
-  { value: Infinity, label: "All" },
-  { value: 2000, label: "2 km" },
-  { value: 5000, label: "5 km" },
-  { value: 10000, label: "10 km" },
+  { label: "All", min: 0, max: Infinity },
+  { label: "1 km", min: 0, max: 1000 },
+  { label: "2 km", min: 0, max: 2000 },
+  { label: "5 km", min: 0, max: 5000 },
+  { label: "10+ km", min: 10000, max: Infinity },
 ];
+type Limit = (typeof LIMITS)[number];
 /** One GPS reading, then the nearest-first list from there. The position isn't stored. */
 async function fetchFromHere(): Promise<{ origin: Origin; list: NearbyMember[] }> {
   const fix = await getBestPosition({ maxWaitMs: 8000, goodEnoughM: 50 });
@@ -44,7 +48,7 @@ export function NearMe({ business, initial }: { business: Origin | null; initial
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [clickLocating, setClickLocating] = useState(false);
   const [query, setQuery] = useState("");
-  const [limit, setLimit] = useState(Infinity);
+  const [limit, setLimit] = useState<Limit>(LIMITS[0]);
 
   async function locate() {
     setFrom("gps");
@@ -81,7 +85,8 @@ export function NearMe({ business, initial }: { business: Origin | null; initial
     const q = query.trim().toLowerCase();
     return all.filter(
       (m) =>
-        m.distanceM <= limit &&
+        m.distanceM <= limit.max &&
+        (limit.min === 0 || m.distanceM > limit.min) &&
         (!q || [m.name, m.business, m.category, m.area].some((v) => v?.toLowerCase().includes(q))),
     );
   }, [from, initial, gps, query, limit]);
@@ -111,10 +116,10 @@ export function NearMe({ business, initial }: { business: Origin | null; initial
             <button
               key={l.label}
               type="button"
-              onClick={() => setLimit(l.value)}
+              onClick={() => setLimit(l)}
               className={cn(
                 "rounded-full border px-3 py-1 text-sm",
-                limit === l.value ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground",
+                limit === l ?"border-primary bg-primary/10 text-primary" : "text-muted-foreground",
               )}
             >
               {l.label}
@@ -138,7 +143,7 @@ export function NearMe({ business, initial }: { business: Origin | null; initial
         </div>
       ) : (
         // A new search, distance limit or starting point goes back to page 1.
-        <NearList key={`${from}|${query}|${limit}`} members={list} />
+        <NearList key={`${from}|${query}|${limit.label}`} members={list} />
       )}
     </div>
   );
